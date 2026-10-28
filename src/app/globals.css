@@ -729,7 +729,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 @media (min-width: 961px) {
   .shell { transition: grid-template-columns 0.35s cubic-bezier(0.65, 0, 0.35, 1); }
   .shell[data-collapsed="true"] { --sidebar: 84px; }
-  .side { transition: padding 0.35s cubic-bezier(0.65, 0, 0.35, 1); }
+  .side { z-index: 25; transition: padding 0.35s cubic-bezier(0.65, 0, 0.35, 1); }
   .side-nav { overflow-x: hidden; }
   .side-label { white-space: nowrap; overflow: hidden; transition: opacity 0.2s ease, max-width 0.35s cubic-bezier(0.65, 0, 0.35, 1); max-width: 220px; }
   .side-link .side-label { flex: 1; }
@@ -750,7 +750,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .shell[data-collapsed="true"] .side-label { opacity: 0; max-width: 0; }
   .shell[data-collapsed="true"] .side-brand { padding-left: 12px; gap: 0; }
   .shell[data-collapsed="true"] .side-link { padding-left: 19px; padding-right: 19px; gap: 0; }
-  .shell[data-collapsed="true"] .side-link .count { position: absolute; top: 3px; right: 5px; padding: 0 5px; font-size: 10px; }
+  .shell[data-collapsed="true"] .side-link { width: 56px; }
+  .shell[data-collapsed="true"] .side-link .count { position: absolute; top: 2px; left: 30px; margin: 0; padding: 0 5px; font-size: 10px; line-height: 15px; }
   .shell[data-collapsed="true"] .side-group { padding: 10px 12px; }
   .shell[data-collapsed="true"] .side-group::after { content: ""; display: block; height: 1px; background: var(--side-line); }
   .shell[data-collapsed="true"] .side-user { padding: 10px 8px; flex-direction: column; gap: 8px; }
