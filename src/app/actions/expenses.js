@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidate, TAGS } from "@/lib/cache";
 import { guarded, requestId } from "@/lib/action";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { audit, transaction } from "@/lib/db";
@@ -25,6 +26,7 @@ export const addExpense = guarded("addExpense", async (_prev, formData) => {
     );
     await audit(tx, user, "expense.add", "expense", res.insertId, { date, category, amount, description });
   });
+  invalidate(TAGS.expenses);
   revalidatePath("/expenses");
   return { ok: true, message: `${EXPENSE_CATEGORIES[category]} expense of ${inr(amount)} saved.` };
 });
@@ -38,5 +40,6 @@ export const deleteExpense = guarded("deleteExpense", async (id) => {
     );
     if (res.affectedRows) await audit(tx, user, "expense.delete", "expense", id);
   });
+  invalidate(TAGS.expenses);
   revalidatePath("/expenses");
 });

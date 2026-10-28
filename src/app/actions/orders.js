@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { invalidate, TAGS } from "@/lib/cache";
 import { guarded, requestId } from "@/lib/action";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { audit, transaction } from "@/lib/db";
@@ -20,7 +21,7 @@ export const createOrder = guarded("createOrder", async (_prev, formData) => {
   if (!(orderedQty > 0)) return { error: "Quantity must be more than 0." };
   if (!(rate > 0)) return { error: "Rate must be more than 0." };
 
-  return transaction(async (tx) => {
+  const result = await transaction(async (tx) => {
     const [customer] = await tx.query("SELECT name FROM customers WHERE id = ?", [customerId]);
     if (!customer) return { error: "That customer no longer exists." };
     const res = await tx.query(
@@ -30,9 +31,14 @@ export const createOrder = guarded("createOrder", async (_prev, formData) => {
     );
     const [{ total_amount: total }] = await tx.query("SELECT total_amount FROM orders WHERE id = ?", [res.insertId]);
     await audit(tx, user, "order.book", "order", res.insertId, { customerId, orderedQty, rate, total });
-    revalidatePath("/", "layout");
     return { ok: true, message: `Order #${res.insertId} booked for ${customer.name} — ${inr(total)}`, id: res.insertId };
   });
+  // Only after the transaction has committed, so no reader can re-cache the old state.
+  if (result.ok) {
+    invalidate(TAGS.orders);
+    revalidatePath("/", "layout");
+  }
+  return result;
 });
 
 export const deliverOrder = guarded("deliverOrder", async (_prev, formData) => {
@@ -71,6 +77,8 @@ export const deliverOrder = guarded("deliverOrder", async (_prev, formData) => {
   });
   if (!result.ok) return result;
 
+  invalidate(TAGS.orders);
+
   revalidatePath("/", "layout");
   redirect(`/deliveries?done=${id}`);
 });
@@ -81,6 +89,7 @@ export const cancelOrder = guarded("cancelOrder", async (id) => {
     const res = await tx.query("UPDATE orders SET status = 'cancelled' WHERE id = ? AND status = 'pending'", [id]);
     if (res.affectedRows) await audit(tx, user, "order.cancel", "order", id);
   });
+  invalidate(TAGS.orders);
   revalidatePath("/", "layout");
   redirect("/deliveries");
 });
@@ -107,6 +116,7 @@ export const reopenOrder = guarded("reopenOrder", async (id) => {
       },
     });
   });
+  invalidate(TAGS.orders);
   revalidatePath("/", "layout");
   redirect(`/deliveries/${id}`);
 });

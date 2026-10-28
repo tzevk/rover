@@ -13,6 +13,8 @@ function createPool() {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     connectionLimit: 10,
+    maxIdle: 10, // keep warm connections instead of reopening (~130 ms each to the remote server)
+    idleTimeout: 10 * 60 * 1000,
     connectTimeout: 10000,
     enableKeepAlive: true,
     dateStrings: true,
@@ -32,9 +34,19 @@ function createPool() {
 // Reuse one pool across hot reloads in dev.
 export const pool = (globalThis.__roverPool ??= createPool());
 
+const SLOW_MS = 300;
+
 export async function query(sql, params = []) {
+  const started = performance.now();
   const [rows] = await pool.query(sql, params);
+  const ms = performance.now() - started;
+  if (ms > SLOW_MS) console.warn(`[db] slow query ${ms.toFixed(0)} ms: ${sql.replace(/\s+/g, " ").slice(0, 140)}`);
   return rows;
+}
+
+// Opens a few connections up front so the first visitors don't pay the connection cost.
+export async function warmPool(n = 4) {
+  await Promise.all(Array.from({ length: n }, () => pool.query("SELECT 1")));
 }
 
 // Runs fn(tx) atomically: every write inside either all happens or none does.

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidate, TAGS } from "@/lib/cache";
 import { guarded, requestId } from "@/lib/action";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { audit, transaction } from "@/lib/db";
@@ -39,6 +40,7 @@ async function insertCustomer(user, input) {
 export const quickAddCustomer = guarded("quickAddCustomer", async (data) => {
   const user = await requireUser();
   const res = await insertCustomer(user, data);
+  invalidate(TAGS.customers);
   revalidatePath("/customers");
   return res;
 });
@@ -47,6 +49,7 @@ export const createCustomer = guarded("createCustomer", async (_prev, formData) 
   const user = await requireAdmin();
   const res = await insertCustomer(user, formData);
   if (res.error) return res;
+  invalidate(TAGS.customers);
   revalidatePath("/customers");
   return { ok: true, message: `Added ${res.customer.name}.` };
 });
@@ -63,6 +66,7 @@ export const updateCustomer = guarded("updateCustomer", async (_prev, formData) 
     ]);
     await audit(tx, user, "customer.update", "customer", id, { before, after: c });
   });
+  invalidate(TAGS.customers);
   revalidatePath(`/customers/${id}`);
   return { ok: true, message: "Details saved." };
 });
@@ -83,6 +87,7 @@ export const recordPayment = guarded("recordPayment", async (_prev, formData) =>
     );
     await audit(tx, user, "payment.record", "customer", customerId, { paymentId: res.insertId, amount, paidOn, note });
   });
+  invalidate(TAGS.payments);
   revalidatePath(`/customers/${customerId}`);
   revalidatePath("/customers");
   return { ok: true, message: `Payment of ${inr(amount)} recorded.` };
@@ -98,5 +103,6 @@ export const deletePayment = guarded("deletePayment", async (customerId, payment
     );
     if (res.affectedRows) await audit(tx, user, "payment.delete", "customer", customerId, { paymentId });
   });
+  invalidate(TAGS.payments);
   revalidatePath(`/customers/${customerId}`);
 });

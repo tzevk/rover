@@ -14,10 +14,14 @@ import zlib from "node:zlib";
 import crypto from "node:crypto";
 import readline from "node:readline";
 import mysql from "mysql2/promise";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "../src/lib/password.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const ENV_FILE = path.resolve(root, process.env.ENV_FILE || ".env.local");
+// Settings live in .env.local or .env — use whichever exists (prefer .env.local, as Next.js does).
+const ENV_FILE = path.resolve(
+  root,
+  process.env.ENV_FILE || (fs.existsSync(path.join(root, ".env.local")) || !fs.existsSync(path.join(root, ".env")) ? ".env.local" : ".env"),
+);
 const MIGRATIONS_DIR = path.join(root, "db/migrations");
 const BACKUP_DIR = path.resolve(root, process.env.BACKUP_DIR || "backups");
 const KEEP_BACKUPS = 30;
@@ -50,8 +54,10 @@ function readEnvFile() {
   );
 }
 
+// Updates our keys and keeps any other settings already in the file.
 function writeEnvFile(values) {
-  const body = Object.entries(values).map(([k, v]) => `${k}="${v}"`).join("\n") + "\n";
+  const merged = { ...readEnvFile(), ...values };
+  const body = Object.entries(merged).map(([k, v]) => `${k}="${v}"`).join("\n") + "\n";
   fs.writeFileSync(ENV_FILE, body, { mode: 0o600 });
 }
 
@@ -141,7 +147,7 @@ async function seedAdmin(conn) {
   const login = { username: "admin", password: process.env.SEED_ADMIN_PASSWORD || secret(9) };
   const [res] = await conn.query(
     "INSERT INTO users (username, full_name, password_hash, role) VALUES (?, 'Owner', ?, 'admin')",
-    [login.username, await bcrypt.hash(login.password, 12)],
+    [login.username, await hashPassword(login.password)],
   );
   await conn.query(
     "INSERT INTO audit_log (action, entity, entity_id, details) VALUES ('user.create', 'user', ?, ?)",

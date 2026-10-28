@@ -1,10 +1,11 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { guarded } from "@/lib/action";
 import { requireAdmin } from "@/lib/auth";
+import { invalidate, TAGS } from "@/lib/cache";
 import { audit, transaction } from "@/lib/db";
+import { hashPassword } from "@/lib/password.mjs";
 import { setSessionCookie } from "@/lib/session-cookie";
 import { text } from "@/lib/validate";
 
@@ -21,17 +22,21 @@ export const createUser = guarded("createUser", async (_prev, formData) => {
   if (!fullName) return { error: "Full name is required." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
 
-  const hash = await bcrypt.hash(password, 12);
-  return transaction(async (tx) => {
+  const hash = await hashPassword(password);
+  const result = await transaction(async (tx) => {
     const [taken] = await tx.query("SELECT id FROM users WHERE username = ?", [username]);
     if (taken) return { error: `Username “${username}” is already taken.` };
     const res = await tx.query("INSERT INTO users (username, full_name, password_hash, role) VALUES (?, ?, ?, ?)", [
       username, fullName, hash, role,
     ]);
     await audit(tx, me, "user.create", "user", res.insertId, { username, fullName, role });
-    revalidatePath("/users");
     return { ok: true, message: `Login created for ${fullName} (${username}).` };
   });
+  if (result.ok) {
+    invalidate(TAGS.users);
+    revalidatePath("/users");
+  }
+  return result;
 });
 
 // Disabling also bumps session_version, which signs the person out on every device immediately.
@@ -42,6 +47,7 @@ export const setUserActive = guarded("setUserActive", async (id, active) => {
     await tx.query("UPDATE users SET active = ?, session_version = session_version + 1 WHERE id = ?", [active ? 1 : 0, id]);
     await audit(tx, me, active ? "user.enable" : "user.disable", "user", id);
   });
+  invalidate(TAGS.users);
   revalidatePath("/users");
 });
 
@@ -50,7 +56,7 @@ export const resetPassword = guarded("resetPassword", async (_prev, formData) =>
   const id = Number(formData.get("id"));
   const password = String(formData.get("password") ?? "");
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
-  const hash = await bcrypt.hash(password, 12);
+  const hash = await hashPassword(password);
 
   const user = await transaction(async (tx) => {
     await tx.query("UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE id = ?", [hash, id]);
@@ -58,6 +64,7 @@ export const resetPassword = guarded("resetPassword", async (_prev, formData) =>
     const [u] = await tx.query("SELECT id, role, session_version FROM users WHERE id = ?", [id]);
     return u;
   });
+  invalidate(TAGS.users);
   // Everyone using the old password is signed out — except you, if you changed your own.
   if (id === me.id && user) {
     await setSessionCookie(user);

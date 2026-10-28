@@ -5,6 +5,7 @@ import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import SubmitButton from "@/components/SubmitButton";
 import { createCustomer } from "@/app/actions/customers";
 import { requireAdmin } from "@/lib/auth";
+import { cached, TAGS } from "@/lib/cache";
 import { CUSTOMER_BALANCES, query } from "@/lib/db";
 import { inr } from "@/lib/format";
 
@@ -14,12 +15,12 @@ export default async function CustomersPage({ searchParams }) {
   await requireAdmin();
   const { q = "", show = "all" } = await searchParams;
   const like = `%${q.trim()}%`;
-  const customers = await query(
+  const customers = await cached(`balances:${show}:${q.trim()}`, { tags: [TAGS.customers, TAGS.orders, TAGS.payments], ttl: 60 }, () => query(
     `SELECT * FROM (${CUSTOMER_BALANCES}) b
      WHERE (name LIKE ? OR phone LIKE ?) ${show === "due" ? "AND outstanding > 0" : ""}
      ORDER BY outstanding DESC, name`,
     [like, like],
-  );
+  ));
   const totals = customers.reduce(
     (t, c) => ({ billed: t.billed + c.billed, paid: t.paid + c.paid, outstanding: t.outstanding + Math.max(c.outstanding, 0) }),
     { billed: 0, paid: 0, outstanding: 0 },

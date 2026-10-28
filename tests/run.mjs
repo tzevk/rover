@@ -136,7 +136,7 @@ async function main() {
   children.push(app);
   await waitFor(async () => { const r = await fetch(`${BASE}/api/health`); if (!r.ok) throw new Error(r.status); }, "App");
   const health = await (await fetch(`${BASE}/api/health`)).json();
-  check(health.status === "ok" && health.schema === "002_safeguards.sql", "health check reports app + database up");
+  check(health.status === "ok" && health.schema === "003_longer_password_hash.sql", "health check reports app + database up");
 
   // ── 5. Browser flows
   const browser = await chromium.launch({ channel: "chrome" });
@@ -305,6 +305,24 @@ async function main() {
     await admin.waitForSelector('tr:has-text("ramesh") button:has-text("Enable")');
     await worker.goto(`${BASE}/orders/new`);
     check(new URL(worker.url()).pathname === "/login", "disabling a login signs that person out immediately");
+
+    console.log("▸ Performance & cache");
+    // An account still on the old bcrypt hash signs in fine and is upgraded to scrypt.
+    const bcrypt = (await import("bcryptjs")).default;
+    await rootConn.query(`INSERT INTO ${DB}.users (username, full_name, password_hash, role) VALUES ('legacy', 'Legacy User', ?, 'worker')`,
+      [await bcrypt.hash("legacy-pass-1", 10)]);
+    const legacyCtx = await browser.newContext();
+    const legacy = await newPage(legacyCtx);
+    await login(legacy, "legacy", "legacy-pass-1");
+    await legacy.waitForSelector('.page-eyebrow:has-text("Legacy")');
+    const [[{ password_hash: upgraded }]] = await rootConn.query(`SELECT password_hash FROM ${DB}.users WHERE username = 'legacy'`);
+    check(upgraded.startsWith("scrypt$"), "an old-style password still works and is upgraded on sign-in");
+    const t0 = performance.now();
+    await admin.goto(`${BASE}/`);
+    await admin.waitForSelector("h1:has-text('Dashboard')");
+    const ms = performance.now() - t0;
+    const stats = (await (await fetch(`${BASE}/api/health`)).json()).cache;
+    check(stats.hits > 0, `cache is serving repeat reads (${stats.hits} hits, ${stats.hitRate}% hit rate; dashboard in ${ms.toFixed(0)} ms)`);
 
     check(errors.length === 0, `no browser errors${errors.length ? `: ${errors.join(" | ")}` : ""}`);
   } catch (err) {

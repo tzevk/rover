@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidate, TAGS } from "@/lib/cache";
 import { guarded } from "@/lib/action";
 import { requireAdmin } from "@/lib/auth";
 import { audit, transaction } from "@/lib/db";
@@ -17,6 +18,7 @@ export const addStaff = guarded("addStaff", async (_prev, formData) => {
     const res = await tx.query("INSERT INTO staff (name, phone, daily_wage) VALUES (?, ?, ?)", [name, phone || null, wage]);
     await audit(tx, user, "staff.add", "staff", res.insertId, { name, phone, wage });
   });
+  invalidate(TAGS.staff);
   revalidatePath("/staff");
   return { ok: true, message: `Added ${name}.` };
 });
@@ -37,6 +39,7 @@ export const updateStaff = guarded("updateStaff", async (_prev, formData) => {
     ]);
     await audit(tx, user, "staff.update", "staff", id, { before, after: { name, phone, wage, active } });
   });
+  invalidate(TAGS.staff);
   revalidatePath("/staff");
   return { ok: true, message: "Saved." };
 });

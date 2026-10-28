@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { cached, TAGS } from "@/lib/cache";
 import { CUSTOMER_BALANCES, query } from "@/lib/db";
 import { fmtDateTime, inr, qty, todayISO } from "@/lib/format";
 import { firstName, greeting } from "@/lib/greeting";
@@ -19,11 +20,13 @@ export default async function HomePage() {
 async function WorkerHome({ user }) {
   const today = todayISO();
   // Only counts of the worker's own work today — no amounts, no completed-order details.
-  const [[{ pending }], [{ booked }], [{ delivered }]] = await Promise.all([
-    query("SELECT COUNT(*) AS pending FROM orders WHERE status = 'pending'"),
-    query("SELECT COUNT(*) AS booked FROM orders WHERE booked_by = ? AND DATE(booked_at) = ?", [user.id, today]),
-    query("SELECT COUNT(*) AS delivered FROM orders WHERE delivered_by = ? AND DATE(delivered_at) = ?", [user.id, today]),
-  ]);
+  const [[{ pending }], [{ booked }], [{ delivered }]] = await cached(
+    `worker-home:${user.id}:${today}`, { tags: [TAGS.orders], ttl: 60 }, () => Promise.all([
+      query("SELECT COUNT(*) AS pending FROM orders WHERE status = 'pending'"),
+      query("SELECT COUNT(*) AS booked FROM orders WHERE booked_by = ? AND DATE(booked_at) = ?", [user.id, today]),
+      query("SELECT COUNT(*) AS delivered FROM orders WHERE delivered_by = ? AND DATE(delivered_at) = ?", [user.id, today]),
+    ]),
+  );
   const tiles = [
     { href: "/orders/new", icon: PlusCircle, title: "Book new order", text: "Customer, quantity and rate." },
     { href: "/deliveries", icon: Truck, title: "Pending deliveries", text: "Vehicle, quantity and payment.", count: pending },
@@ -63,7 +66,9 @@ async function WorkerHome({ user }) {
 
 async function AdminDashboard({ user }) {
   const today = todayISO();
-  const [[pending], [delivered], [payments], [expenses], [outstanding], oldestPending, topDue] = await Promise.all([
+  const tags = [TAGS.orders, TAGS.payments, TAGS.expenses, TAGS.customers];
+  const [[pending], [delivered], [payments], [expenses], [outstanding], oldestPending, topDue] = await cached(
+    `dashboard:${today}`, { tags, ttl: 60 }, () => Promise.all([
     query("SELECT COUNT(*) AS n, COALESCE(SUM(total_amount), 0) AS value FROM orders WHERE status = 'pending'"),
     query(
       `SELECT COUNT(*) AS n, COALESCE(SUM(delivered_qty), 0) AS qty, COALESCE(SUM(total_amount), 0) AS sales,
@@ -80,7 +85,7 @@ async function AdminDashboard({ user }) {
        WHERE o.status = 'pending' ORDER BY o.booked_at LIMIT 6`,
     ),
     query(`SELECT * FROM (${CUSTOMER_BALANCES}) b WHERE outstanding > 0 ORDER BY outstanding DESC LIMIT 6`),
-  ]);
+  ]));
   const collected = delivered.paid + payments.total;
 
   return (

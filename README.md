@@ -30,6 +30,17 @@ Run `npm test` before every change goes live. Run `npm run db:backup` daily (or 
 | Friendly failures | If the database is unreachable, users see "nothing was saved, try again", never a crash or half-saved record. |
 | Health check | `GET /api/health` → 200 when app + database are up, 503 otherwise (for an uptime monitor). |
 
+## Performance
+
+| Layer | What it does |
+|---|---|
+| App cache (`src/lib/cache.js`) | Keeps hot reads in memory: the signed-in user, the pending badge, dashboard totals, customer lists, balances. Every save invalidates exactly the tags it touches, after its transaction commits, so numbers are never stale. Concurrent misses share one query. Hit rate is shown at `/api/health`. |
+| Warm connection pool | `src/instrumentation.js` opens database connections at startup; idle ones are kept for 10 minutes instead of reconnecting (~130 ms each). |
+| Password hashing | Native scrypt (~20 ms, off the main thread) instead of pure-JS bcrypt (~190 ms, blocking every other request). Old bcrypt hashes still work and are upgraded on next sign-in. |
+| Slow-query log | Any query over 300 ms is logged as `[db] slow query`. |
+
+Always run the production build for real use (`npm run build && npm start`): `npm run dev` compiles each page the first time it opens, which makes sign-in take seconds instead of under 100 ms.
+
 ## Who sees what
 
 | | Worker | Admin |

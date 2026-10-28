@@ -1,6 +1,7 @@
 import { ClipboardPen, Info, PlusCircle } from "lucide-react";
 import { PageHead, Section } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { cached, TAGS } from "@/lib/cache";
 import { query } from "@/lib/db";
 import NewOrderForm from "./NewOrderForm";
 
@@ -9,7 +10,9 @@ export const metadata = { title: "New order" };
 export default async function NewOrderPage() {
   await requireUser();
   // Workers see names and phones only — never balances.
-  const customers = await query("SELECT id, name, phone FROM customers ORDER BY name");
+  const customers = await cached("customer-list", { tags: [TAGS.customers], ttl: 300 }, () =>
+    query("SELECT id, name, phone FROM customers ORDER BY name"),
+  );
   return (
     <>
       <PageHead icon={PlusCircle} title="Book a new order" subtitle="Pick the customer, enter quantity and rate. The total works itself out." />

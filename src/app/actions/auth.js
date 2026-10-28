@@ -1,9 +1,10 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { invalidate, TAGS } from "@/lib/cache";
 import { query } from "@/lib/db";
+import { burnVerifyTime, hashPassword, needsRehash, verifyPassword } from "@/lib/password.mjs";
 import { SESSION_COOKIE } from "@/lib/session";
 import { setSessionCookie } from "@/lib/session-cookie";
 import { text } from "@/lib/validate";
@@ -37,13 +38,20 @@ export async function login(_prev, formData) {
     return { error: "Can't reach the database right now. Please try again." };
   }
 
-  const ok = user && user.active && (await bcrypt.compare(password, user.password_hash));
+  // Unknown usernames take as long as wrong passwords, so they can't be discovered by timing.
+  const ok = user ? user.active && (await verifyPassword(password, user.password_hash)) : (await burnVerifyTime(password), false);
   if (!ok) {
     const prev = rec && Date.now() - rec.at < LOCK_MS ? rec.count : 0;
     failures.set(key, { count: prev + 1, at: Date.now() });
     return { error: user && !user.active ? "This account has been disabled." : "Incorrect username or password." };
   }
   failures.delete(key);
+
+  // Quietly move older bcrypt hashes to scrypt now that we know the password.
+  if (needsRehash(user.password_hash)) {
+    await query("UPDATE users SET password_hash = ? WHERE id = ?", [await hashPassword(password), user.id]).catch(() => {});
+    invalidate(TAGS.users);
+  }
 
   await setSessionCookie(user);
   redirect("/");

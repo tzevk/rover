@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidate, TAGS } from "@/lib/cache";
 import { guarded } from "@/lib/action";
 import { requireUser } from "@/lib/auth";
 import { audit, transaction } from "@/lib/db";
@@ -32,6 +33,7 @@ export const saveAttendance = guarded("saveAttendance", async (_prev, formData) 
       date, marks: Object.fromEntries(rows.map(([id, , status]) => [id, status])),
     });
   });
+  invalidate(TAGS.attendance);
   revalidatePath("/attendance");
   return { ok: true, message: `Attendance saved for ${rows.length} ${rows.length === 1 ? "person" : "people"} on ${fmtDate(date)}.` };
 });
