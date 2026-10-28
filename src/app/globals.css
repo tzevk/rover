@@ -118,6 +118,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+/* Entrance motion moves content but never hides it, so a paused animation can't leave a blank page. */
+@keyframes enter { from { transform: translateY(10px); } to { transform: none; } }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
 .right { text-align: right; }
@@ -165,7 +167,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @keyframes glow { to { transform: translate(-80px, 50px) scale(1.1); } }
 .auth-strata { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 34vh; min-height: 220px; }
 
-.auth-hero { max-width: 640px; animation: rise 0.9s ease both; }
+.auth-hero { max-width: 640px; animation: enter 0.9s ease both; }
 .auth-hero > svg { display: block; filter: drop-shadow(0 12px 24px rgb(0 0 0 / 0.35)); }
 .auth-kicker {
   display: inline-flex; align-items: center; gap: 12px;
@@ -197,7 +199,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border-radius: 28px;
   box-shadow: 0 40px 90px -30px rgb(0 0 0 / 0.65), 0 0 0 1px rgb(0 0 0 / 0.04);
   overflow: hidden;
-  animation: rise 0.8s 0.15s ease both;
+  animation: enter 0.8s 0.15s ease both;
 }
 .auth-steps {
   display: grid;
@@ -350,7 +352,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .topbar, .tabbar { display: none; }
 /* Fluid: uses the whole window on any desktop size, with padding that scales with it. */
 .workspace { min-width: 0; display: flex; flex-direction: column; }
-.main { padding: clamp(22px, 2.2vw, 36px) clamp(20px, 3vw, 56px) 72px; width: 100%; min-width: 0; animation: fade 0.3s ease both; }
+.main { padding: clamp(22px, 2.2vw, 36px) clamp(20px, 3vw, 56px) 72px; width: 100%; min-width: 0; }
 
 /* Desktop header: where you are, today's date, quick action, who you are */
 .apphead {
@@ -553,7 +555,7 @@ input[type="checkbox"] { accent-color: var(--primary); width: 17px; height: 17px
 .btn-lg { height: 54px; font-size: 16px; padding: 0 28px; border-radius: 14px; }
 @media (max-width: 600px) { .form .btn-lg { width: 100%; } }
 
-.alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; display: flex; gap: 10px; align-items: center; animation: rise 0.3s ease both; }
+.alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; display: flex; gap: 10px; align-items: center; animation: enter 0.3s ease both; }
 .alert svg { flex: none; }
 .alert-error { background: var(--danger-soft); color: var(--danger); }
 .alert-ok { background: var(--ok-soft); color: var(--ok); }
@@ -673,7 +675,7 @@ input[type="checkbox"] { accent-color: var(--primary); width: 17px; height: 17px
   position: absolute; z-index: 10; left: 0; right: 0; top: calc(100% + 6px);
   background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg);
   max-height: 300px; overflow-y: auto; padding: 6px;
-  animation: rise 0.18s ease both;
+  animation: enter 0.18s ease both;
 }
 .picker-item { display: flex; justify-content: space-between; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border: 0; background: none; border-radius: 10px; cursor: pointer; color: var(--ink); }
 .picker-item:hover, .picker-item[aria-selected="true"] { background: var(--tint); }
@@ -721,3 +723,84 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .date-nav form { flex: 1; min-width: 0; }
   .date-nav form .input { flex: 1; min-width: 0; }
 }
+
+/* ───────────────────────── Collapsible sidebar (desktop) ───────────────────────── */
+.side-toggle { display: none; }
+@media (min-width: 961px) {
+  .shell { transition: grid-template-columns 0.35s cubic-bezier(0.65, 0, 0.35, 1); }
+  .shell[data-collapsed="true"] { --sidebar: 84px; }
+  .side { transition: padding 0.35s cubic-bezier(0.65, 0, 0.35, 1); }
+  .side-nav { overflow-x: hidden; }
+  .side-label { white-space: nowrap; overflow: hidden; transition: opacity 0.2s ease, max-width 0.35s cubic-bezier(0.65, 0, 0.35, 1); max-width: 220px; }
+  .side-link .side-label { flex: 1; }
+
+  .side-toggle {
+    position: absolute; top: 30px; right: -13px; z-index: 5;
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center; cursor: pointer;
+    background: var(--surface); color: var(--ink-2);
+    border: 1px solid var(--line-2); box-shadow: var(--shadow);
+    opacity: 0; transform: scale(0.85);
+    transition: opacity 0.2s, transform 0.2s, background 0.15s, color 0.15s;
+  }
+  .side:hover .side-toggle, .side-toggle:focus-visible { opacity: 1; transform: none; }
+  .side-toggle:hover { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+  .shell[data-collapsed="true"] .side-toggle { opacity: 1; transform: none; }
+  .shell[data-collapsed="true"] .side-label { opacity: 0; max-width: 0; }
+  .shell[data-collapsed="true"] .side-brand { padding-left: 12px; gap: 0; }
+  .shell[data-collapsed="true"] .side-link { padding-left: 19px; padding-right: 19px; gap: 0; }
+  .shell[data-collapsed="true"] .side-link .count { position: absolute; top: 3px; right: 5px; padding: 0 5px; font-size: 10px; }
+  .shell[data-collapsed="true"] .side-group { padding: 10px 12px; }
+  .shell[data-collapsed="true"] .side-group::after { content: ""; display: block; height: 1px; background: var(--side-line); }
+  .shell[data-collapsed="true"] .side-user { padding: 10px 8px; flex-direction: column; gap: 8px; }
+  .shell[data-collapsed="true"] .side-user .who { display: none; }
+}
+
+/* ───────────────────────── Motion ─────────────────────────
+   Short, eased, purposeful. All of it switches off under prefers-reduced-motion (see top). */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+
+  /* Page entrance: content rises in, sections arrive one after another */
+  .page-enter > * { animation: enter 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .page-enter > *:nth-child(2) { animation-delay: 0.05s; }
+  .page-enter > *:nth-child(3) { animation-delay: 0.1s; }
+  .page-enter > *:nth-child(4) { animation-delay: 0.15s; }
+  .page-enter > *:nth-child(n + 5) { animation-delay: 0.2s; }
+  .stats > *, .tiles > * { animation: enter 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .stats > *:nth-child(2), .tiles > *:nth-child(2) { animation-delay: 0.06s; }
+  .stats > *:nth-child(3), .tiles > *:nth-child(3) { animation-delay: 0.12s; }
+  .stats > *:nth-child(4), .tiles > *:nth-child(4) { animation-delay: 0.18s; }
+  .stats > *:nth-child(n + 5) { animation-delay: 0.24s; }
+  .grid-2 > *, .split > * { animation: enter 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .grid-2 > *:nth-child(2), .split > *:nth-child(2) { animation-delay: 0.08s; }
+
+  /* Gentle life on interactive surfaces */
+  .stat { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+  .stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .page-ico { transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .page-head:hover .page-ico { transform: rotate(-6deg) scale(1.05); }
+  .card-ico, .stat-ico { transition: transform 0.25s ease; }
+  .card:hover .card-ico, .stat:hover .stat-ico { transform: scale(1.08); }
+  .side-link svg { transition: transform 0.2s ease; }
+  .side-link:hover svg { transform: translateX(2px); }
+  .btn:active, .auth-btn:active, .tab:active { transform: scale(0.97); }
+  .tab svg { transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .tab.active svg { transform: translateY(-2px); }
+  .picked, .inset { animation: enter 0.3s ease both; }
+  .seg span { transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease; }
+  .seg span:active { transform: scale(0.95); }
+  .calc strong { transition: color 0.2s; }
+}
+
+/* Navigation progress bar */
+.nav-progress {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent), var(--hi));
+  box-shadow: 0 0 10px rgb(224 187 133 / 0.6);
+  transform-origin: left; transform: scaleX(0); opacity: 0; pointer-events: none;
+}
+.nav-progress[data-state="loading"] { opacity: 1; animation: nav-crawl 8s cubic-bezier(0.1, 0.6, 0.2, 1) forwards; }
+.nav-progress[data-state="done"] { opacity: 0; transform: scaleX(1); transition: transform 0.2s ease, opacity 0.35s 0.15s ease; }
+@keyframes nav-crawl { 0% { transform: scaleX(0.05); } 20% { transform: scaleX(0.45); } 100% { transform: scaleX(0.9); } }

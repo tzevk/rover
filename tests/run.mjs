@@ -130,7 +130,8 @@ async function main() {
   // "localhost", not 127.0.0.1: Next.js rewrites 127.0.0.1 to localhost in redirects, which would drop cookies.
   const BASE = `http://localhost:${appPort}`;
   const app = spawn(process.execPath, [`${root}/node_modules/next/dist/bin/next`, "start", "-p", String(appPort)], {
-    cwd: root, env: { ...process.env, ...appEnv, NODE_ENV: "production", NEXT_DIST_DIR: ".next-test" }, stdio: "ignore",
+    cwd: root, env: { ...process.env, ...appEnv, NODE_ENV: "production", NEXT_DIST_DIR: ".next-test" },
+    stdio: ["ignore", fs.openSync(`${tmp}/app.log`, "a"), fs.openSync(`${tmp}/app.log`, "a")],
   });
   children.push(app);
   await waitFor(async () => { const r = await fetch(`${BASE}/api/health`); if (!r.ok) throw new Error(r.status); }, "App");
@@ -183,6 +184,13 @@ async function main() {
     }
     check(true, "admin creates a worker login and staff");
 
+    await admin.click('button[aria-label="Collapse sidebar"]');
+    await admin.waitForSelector('.shell[data-collapsed="true"]');
+    await admin.reload();
+    check(await admin.isVisible('.shell[data-collapsed="true"]'), "collapsed sidebar is remembered after a reload");
+    await admin.click('button[aria-label="Expand sidebar"]');
+    await admin.waitForSelector('.shell[data-collapsed="false"]');
+
     console.log("▸ Worker flows");
     const workerCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const worker = await newPage(workerCtx);
@@ -232,7 +240,11 @@ async function main() {
       await worker.goto(BASE + p);
       check(new URL(worker.url()).pathname === "/", `worker is kept out of ${p}`);
     }
-    check((await worker.goto(`${BASE}/deliveries/1`)).status() === 404, "worker cannot open a completed order");
+    // The page streams (loading screen), so assert on what the worker sees rather than the status code.
+    await worker.goto(`${BASE}/deliveries/1`);
+    await worker.waitForSelector("text=Not found");
+    check(!(await worker.isVisible("text=MH12AB1234")) && !(await worker.isVisible("text=Delivery details")),
+      "worker cannot open a completed order");
 
     await worker.goto(`${BASE}/expenses`);
     await worker.selectOption('select[name="category"]', "fuel");

@@ -5,10 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpenCheck, CalendarCheck, CalendarDays, ClipboardList, Contact, HardHat, History, Home, LogOut, Menu,
-  PlusCircle, Receipt, ShieldCheck, Truck, UserRound, Users, Wallet,
+  PanelLeftClose, PanelLeftOpen, PlusCircle, Receipt, ShieldCheck, Truck, UserRound, Users, Wallet,
 } from "lucide-react";
 import Logo from "./Logo";
+import NavProgress from "./NavProgress";
 import { logout } from "@/app/actions/auth";
+import { SIDEBAR_COOKIE } from "@/lib/ui-prefs";
 
 const WORK = [
   { href: "/", label: "Home", short: "Home", icon: Home },
@@ -41,8 +43,16 @@ function currentSection(pathname, items) {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 
-export default function Shell({ user, appName, pendingCount, today, children }) {
+export default function Shell({ user, appName, pendingCount, today, initialCollapsed = false, children }) {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
+
+  // Remembered in a cookie (not localStorage) so the server renders the right width — no flicker.
+  function toggleSidebar() {
+    const next = !collapsed;
+    setCollapsed(next);
+    document.cookie = `${SIDEBAR_COOKIE}=${next ? "collapsed" : "open"}; path=/; max-age=31536000; samesite=lax`;
+  }
   const items = user.role === "admin" ? [...WORK, ...ADMIN] : WORK;
   const section = currentSection(pathname, items) ?? WORK[0];
   const SectionIcon = section.icon;
@@ -77,16 +87,18 @@ export default function Shell({ user, appName, pendingCount, today, children }) 
   const link = (item) => {
     const Icon = item.icon;
     return (
-      <Link key={item.href} href={item.href} className={`side-link${isActive(pathname, item.href) ? " active" : ""}`}>
+      <Link key={item.href} href={item.href} title={collapsed ? item.label : undefined}
+        className={`side-link${isActive(pathname, item.href) ? " active" : ""}`}>
         <Icon size={18} />
-        {item.label}
+        <span className="side-label">{item.label}</span>
         {item.count === "pending" && pendingCount > 0 && <span className="count">{pendingCount}</span>}
       </Link>
     );
   };
 
   return (
-    <div className="shell" data-open={open}>
+    <div className="shell" data-open={open} data-collapsed={collapsed}>
+      <NavProgress />
       <header className="topbar">
         <Logo size={30} />
         {appName}
@@ -98,23 +110,27 @@ export default function Shell({ user, appName, pendingCount, today, children }) 
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
 
       <aside className="side">
-        <Link href="/" className="side-brand">
+        <Link href="/" className="side-brand" title={collapsed ? appName : undefined}>
           <Logo size={32} />
-          {appName}
+          <span className="side-label">{appName}</span>
         </Link>
+        <button className="side-toggle" onClick={toggleSidebar}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+          {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+        </button>
         <nav className="side-nav">
-          {user.role === "admin" && <div className="side-group">Daily work</div>}
+          {user.role === "admin" && <div className="side-group"><span className="side-label">Daily work</span></div>}
           {WORK.map(link)}
           {user.role === "admin" && (
             <>
-              <div className="side-group">Owner</div>
+              <div className="side-group"><span className="side-label">Owner</span></div>
               {ADMIN.map(link)}
             </>
           )}
         </nav>
         <div className="side-user">
           <span className="avatar">{initial}</span>
-          <div className="who">
+          <div className="who side-label">
             <strong>{user.full_name}</strong>
             <span><RoleIcon size={12} /> {user.role === "admin" ? "Owner · Admin" : "Staff · Worker"}</span>
           </div>
@@ -146,7 +162,10 @@ export default function Shell({ user, appName, pendingCount, today, children }) 
             </div>
           </div>
         </header>
-        <main className="main">{children}</main>
+        <main className="main">
+          {/* Keyed by route so each page plays its entrance animation; same-page refreshes don't. */}
+          <div key={pathname} className="page-enter">{children}</div>
+        </main>
       </div>
 
       <nav className="tabbar" aria-label="Quick navigation">
