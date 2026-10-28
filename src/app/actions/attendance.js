@@ -1,0 +1,37 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { guarded } from "@/lib/action";
+import { requireUser } from "@/lib/auth";
+import { audit, transaction } from "@/lib/db";
+import { ATTENDANCE, fmtDate, todayISO } from "@/lib/format";
+import { isDate } from "@/lib/validate";
+
+export const saveAttendance = guarded("saveAttendance", async (_prev, formData) => {
+  const user = await requireUser();
+  const today = todayISO();
+  // Workers can only mark today; the Admin can correct any past day.
+  const date = user.role === "admin" ? String(formData.get("date") || today) : today;
+  if (!isDate(date) || date > today) return { error: "Pick a valid date (not in the future)." };
+
+  const rows = [];
+  for (const [key, value] of formData.entries()) {
+    const m = key.match(/^s_(\d+)$/);
+    if (m && ATTENDANCE[value]) rows.push([Number(m[1]), date, value, user.id]);
+  }
+  if (rows.length === 0) return { error: "Mark at least one person." };
+
+  // Saving twice is harmless: one row per person per day, updated in place.
+  await transaction(async (tx) => {
+    await tx.query(
+      `INSERT INTO attendance (staff_id, att_date, status, marked_by) VALUES ?
+       ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by)`,
+      [rows],
+    );
+    await audit(tx, user, "attendance.save", "attendance", null, {
+      date, marks: Object.fromEntries(rows.map(([id, , status]) => [id, status])),
+    });
+  });
+  revalidatePath("/attendance");
+  return { ok: true, message: `Attendance saved for ${rows.length} ${rows.length === 1 ? "person" : "people"} on ${fmtDate(date)}.` };
+});

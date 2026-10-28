@@ -1,0 +1,52 @@
+import Logo from "@/components/Logo";
+import { APP_NAME } from "@/lib/format";
+import LoginForm from "./LoginForm";
+
+export const metadata = { title: "Sign in" };
+
+export default function LoginPage() {
+  // The last word of the name is set in gold italic, e.g. "Rover *Quarry*".
+  const words = APP_NAME.trim().split(/\s+/);
+  const last = words.pop();
+
+  return (
+    <main className="auth">
+      <div className="auth-scene" aria-hidden="true">
+        <div className="auth-rings" />
+        <div className="auth-glow" />
+        <svg className="auth-strata" viewBox="0 0 1440 360" preserveAspectRatio="none">
+          <path d="M0 150 L150 84 L300 132 L470 40 L640 120 L800 66 L980 130 L1150 72 L1300 118 L1440 86 V360 H0Z" fill="#1b3727" />
+          <path d="M0 200 L180 146 L350 188 L540 112 L720 182 L900 134 L1080 180 L1260 126 L1440 168 V360 H0Z" fill="#224a35" />
+          <path d="M0 246 L200 206 L400 236 L600 192 L820 240 L1020 206 L1220 236 L1440 210 V360 H0Z" fill="#5f3f23" />
+          <path d="M0 284 L240 258 L480 280 L720 252 L960 278 L1200 256 L1440 272 V360 H0Z" fill="#7d5430" />
+          <path d="M0 318 L260 302 L540 314 L820 298 L1100 312 L1440 300 V360 H0Z" fill="#a8743f" />
+          <g stroke="#e0bb85" strokeOpacity=".2" strokeWidth="1" fill="none">
+            <path d="M0 220 L200 182 L400 214 L600 170 L820 218 L1020 184 L1220 214 L1440 190" />
+            <path d="M0 170 L180 116 L350 158 L540 84 L720 152 L900 106 L1080 150 L1260 98 L1440 140" />
+            <path d="M0 264 L240 236 L480 258 L720 232 L960 256 L1200 236 L1440 250" />
+          </g>
+        </svg>
+      </div>
+
+      <section className="auth-hero">
+        <Logo size={64} />
+        <p className="auth-kicker">Quarry operations</p>
+        <h1 className="auth-title">
+          {words.length > 0 && <>{words.join(" ")} </>}
+          <em>{last}</em>
+        </h1>
+        <p className="auth-tagline">Orders, dispatch, customer ledgers and the day&apos;s accounts, all in one calm place.</p>
+        <ul className="auth-points">
+          <li>Book &amp; dispatch</li>
+          <li>Live balances</li>
+          <li>Daily accounts</li>
+        </ul>
+      </section>
+
+      <section className="auth-panel">
+        <LoginForm />
+        <p className="auth-foot">Access is managed by the owner. Forgot your password? Ask the Admin to reset it.</p>
+      </section>
+    </main>
+  );
+}
