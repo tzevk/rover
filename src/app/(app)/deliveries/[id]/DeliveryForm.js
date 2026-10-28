@@ -55,7 +55,7 @@ export default function DeliveryForm({ order }) {
         </label>
       </div>
 
-      <div className="fields">
+      <div className="fields fields-pair">
         <label className="field">
           <span>Delivered quantity</span>
           <input className="input num" type="number" name="delivered_qty" inputMode="decimal" min="0.01" step="0.01"

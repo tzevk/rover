@@ -54,7 +54,7 @@ export default function NewOrderForm({ customers: initialCustomers }) {
         />
       </div>
 
-      <div className="fields">
+      <div className="fields fields-pair">
         <label className="field">
           <span>Ordered quantity</span>
           <input className="input num" name="ordered_qty" type="number" inputMode="decimal" min="0.01" step="0.01"
