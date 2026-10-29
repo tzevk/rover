@@ -3,12 +3,14 @@ import { CheckCircle2, CircleCheckBig, ListFilter, Search, Truck } from "lucide-
 import { EmptyState, PageHead, Section } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { fmtDateTime, inr, qty } from "@/lib/format";
+import { inr, qty } from "@/lib/format";
+import { getI18n, pageTitle } from "@/lib/i18n/server";
 
-export const metadata = { title: "Pending deliveries" };
+export const generateMetadata = pageTitle("nav.deliveries");
 
 export default async function DeliveriesPage({ searchParams }) {
   await requireUser();
+  const { t, fmtDateTime } = await getI18n();
   const { q = "", done } = await searchParams;
   const like = `%${q.trim()}%`;
 
@@ -25,38 +27,38 @@ export default async function DeliveriesPage({ searchParams }) {
 
   return (
     <>
-      <PageHead icon={Truck} title="Pending deliveries" subtitle="Pick an order when its vehicle is loaded and dispatched." />
+      <PageHead icon={Truck} title={t("nav.deliveries")} subtitle={t("deliveries.subtitle")} />
 
       {done && (
         <div className="alert alert-ok" style={{ marginBottom: 16 }}>
-          <CheckCircle2 size={18} /> Order #{done} delivered and the customer&apos;s balance has been updated.
+          <CheckCircle2 size={18} /> {t("deliveries.done", { id: done })}
         </div>
       )}
 
-      <Section icon={ListFilter} title={`${orders.length} waiting`} subtitle="Oldest first">
+      <Section icon={ListFilter} title={t("deliveries.waiting", { n: orders.length })} subtitle={t("deliveries.oldestFirst")}>
         <form className="filters">
           <label className="field" style={{ flex: 1 }}>
-            <span className="sr-only">Search</span>
-            <input className="input" name="q" defaultValue={q} placeholder="Search customer, phone or order #" />
+            <span className="sr-only">{t("common.search")}</span>
+            <input className="input" name="q" defaultValue={q} placeholder={t("deliveries.searchPlaceholder")} />
           </label>
-          <button className="btn"><Search size={16} /> Search</button>
+          <button className="btn"><Search size={16} /> {t("common.search")}</button>
         </form>
 
         {orders.length === 0 ? (
-          <EmptyState icon={q ? Search : CircleCheckBig} title={q ? "No matches" : "All caught up"}>
-            {q ? "No pending orders match your search." : "There are no pending deliveries right now."}
+          <EmptyState icon={q ? Search : CircleCheckBig} title={t(q ? "deliveries.noMatches" : "home.allCaughtUp")}>
+            {t(q ? "deliveries.noMatchesText" : "deliveries.noneText")}
           </EmptyState>
         ) : (
           <div className="table-wrap">
             <table className="table table-cards">
               <thead>
                 <tr>
-                  <th>Order</th>
-                  <th>Customer</th>
-                  <th className="num">Qty</th>
-                  <th className="num">Rate</th>
-                  <th className="num">Total</th>
-                  <th>Booked</th>
+                  <th>{t("common.order")}</th>
+                  <th>{t("common.customer")}</th>
+                  <th className="num">{t("common.qty")}</th>
+                  <th className="num">{t("common.rate")}</th>
+                  <th className="num">{t("common.total")}</th>
+                  <th>{t("common.booked")}</th>
                   <th />
                 </tr>
               </thead>
@@ -68,16 +70,16 @@ export default async function DeliveriesPage({ searchParams }) {
                       <strong>{o.name}</strong>
                       <div className="muted" style={{ fontSize: 12 }}>{o.phone || "—"}</div>
                     </td>
-                    <td className="num" data-label="Qty">{qty(o.ordered_qty)}</td>
-                    <td className="num" data-label="Rate">{inr(o.rate)}</td>
-                    <td className="num" data-label="Total">{inr(o.total_amount)}</td>
-                    <td className="nowrap" data-label="Booked">
+                    <td className="num" data-label={t("common.qty")}>{qty(o.ordered_qty)}</td>
+                    <td className="num" data-label={t("common.rate")}>{inr(o.rate)}</td>
+                    <td className="num" data-label={t("common.total")}>{inr(o.total_amount)}</td>
+                    <td className="nowrap" data-label={t("common.booked")}>
                       {fmtDateTime(o.booked_at)}
-                      <div className="muted" style={{ fontSize: 12 }}>by {o.booked_by || "—"}</div>
+                      <div className="muted" style={{ fontSize: 12 }}>{t("deliveries.by", { name: o.booked_by || "—" })}</div>
                     </td>
                     <td className="right wide">
                       <Link href={`/deliveries/${o.id}`} className="btn btn-primary btn-sm">
-                        <Truck size={14} /> Deliver
+                        <Truck size={14} /> {t("deliveries.deliver")}
                       </Link>
                     </td>
                   </tr>

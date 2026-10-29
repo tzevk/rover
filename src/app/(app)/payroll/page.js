@@ -2,13 +2,15 @@ import { Calculator, HardHat, Users, Wallet } from "lucide-react";
 import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { fmtDate, inr, todayISO } from "@/lib/format";
+import { inr, todayISO } from "@/lib/format";
+import { getI18n, pageTitle } from "@/lib/i18n/server";
 import { isDate } from "@/lib/validate";
 
-export const metadata = { title: "Payroll" };
+export const generateMetadata = pageTitle("nav.payroll");
 
 export default async function PayrollPage({ searchParams }) {
   await requireAdmin();
+  const { t, fmtDate } = await getI18n();
   const sp = await searchParams;
   const today = todayISO();
   const from = isDate(sp.from) ? sp.from : `${today.slice(0, 8)}01`;
@@ -34,33 +36,33 @@ export default async function PayrollPage({ searchParams }) {
 
   return (
     <>
-      <PageHead icon={Wallet} title="Payroll" subtitle={`Salary from attendance · ${fmtDate(from)} – ${fmtDate(to)}`} />
+      <PageHead icon={Wallet} title={t("nav.payroll")} subtitle={t("payroll.subtitle", { from: fmtDate(from), to: fmtDate(to) })} />
       <div className="stats">
-        <Stat accent icon={Wallet} label="Total salary payable" value={inr(total)} />
-        <Stat icon={Users} label="Staff counted" value={data.length} />
+        <Stat accent icon={Wallet} label={t("payroll.totalPayable")} value={inr(total)} />
+        <Stat icon={Users} label={t("payroll.staffCounted")} value={data.length} />
       </div>
 
-      <Section icon={Calculator} title="Salary by person" subtitle="Present = 1 day, Half-day = ½, Absent = 0">
+      <Section icon={Calculator} title={t("payroll.byPerson")} subtitle={t("payroll.rule")}>
         <form className="filters">
-          <label className="field"><span>From</span><input className="input" type="date" name="from" defaultValue={from} /></label>
-          <label className="field"><span>To</span><input className="input" type="date" name="to" defaultValue={to} /></label>
-          <button className="btn"><Calculator size={16} /> Calculate</button>
+          <label className="field"><span>{t("common.from")}</span><input className="input" type="date" name="from" defaultValue={from} /></label>
+          <label className="field"><span>{t("common.to")}</span><input className="input" type="date" name="to" defaultValue={to} /></label>
+          <button className="btn"><Calculator size={16} /> {t("payroll.calculate")}</button>
         </form>
         {data.length === 0 ? (
-          <EmptyState icon={HardHat} title="No staff yet">Add staff and mark attendance to see salaries.</EmptyState>
+          <EmptyState icon={HardHat} title={t("common.noStaffYet")}>{t("payroll.noneText")}</EmptyState>
         ) : (
           <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Name</th><th className="num">Present</th><th className="num">Half-day</th><th className="num">Absent</th>
-                  <th className="num">Payable days</th><th className="num">Daily wage</th><th className="num">Salary</th>
+                  <th>{t("common.name")}</th><th className="num">{t("att.present")}</th><th className="num">{t("att.half_day")}</th><th className="num">{t("att.absent")}</th>
+                  <th className="num">{t("payroll.payableDays")}</th><th className="num">{t("common.dailyWage")}</th><th className="num">{t("payroll.salary")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.map((r) => (
                   <tr key={r.id}>
-                    <td><strong>{r.name}</strong>{!r.active && <span className="badge badge-cancelled" style={{ marginLeft: 8 }}>inactive</span>}</td>
+                    <td><strong>{r.name}</strong>{!r.active && <span className="badge badge-cancelled" style={{ marginLeft: 8 }}>{t("badge.inactive")}</span>}</td>
                     <td className="num">{r.present}</td>
                     <td className="num">{r.half}</td>
                     <td className="num">{r.absent}</td>
@@ -71,7 +73,7 @@ export default async function PayrollPage({ searchParams }) {
                 ))}
               </tbody>
               <tfoot>
-                <tr><td colSpan={6}>Total</td><td className="num">{inr(total)}</td></tr>
+                <tr><td colSpan={6}>{t("common.total")}</td><td className="num">{inr(total)}</td></tr>
               </tfoot>
             </table>
           </div>

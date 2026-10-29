@@ -8,29 +8,31 @@ import { audit, transaction } from "@/lib/db";
 import { hashPassword } from "@/lib/password.mjs";
 import { setSessionCookie } from "@/lib/session-cookie";
 import { text } from "@/lib/validate";
+import { getI18n } from "@/lib/i18n/server";
 
 const USERNAME = /^[a-z0-9._-]{3,50}$/;
 
 export const createUser = guarded("createUser", async (_prev, formData) => {
   const me = await requireAdmin();
+  const { t } = await getI18n();
   const username = text(formData.get("username"), 50).toLowerCase();
   const fullName = text(formData.get("full_name"), 100);
   const role = formData.get("role") === "admin" ? "admin" : "worker";
   const password = String(formData.get("password") ?? "");
 
-  if (!USERNAME.test(username)) return { error: "Username: 3–50 characters, letters, numbers, dot, dash or underscore." };
-  if (!fullName) return { error: "Full name is required." };
-  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (!USERNAME.test(username)) return { error: t("action.usernameRule") };
+  if (!fullName) return { error: t("action.fullName") };
+  if (password.length < 8) return { error: t("action.passwordLength") };
 
   const hash = await hashPassword(password);
   const result = await transaction(async (tx) => {
     const [taken] = await tx.query("SELECT id FROM users WHERE username = ?", [username]);
-    if (taken) return { error: `Username “${username}” is already taken.` };
+    if (taken) return { error: t("action.usernameTaken", { username }) };
     const res = await tx.query("INSERT INTO users (username, full_name, password_hash, role) VALUES (?, ?, ?, ?)", [
       username, fullName, hash, role,
     ]);
     await audit(tx, me, "user.create", "user", res.insertId, { username, fullName, role });
-    return { ok: true, message: `Login created for ${fullName} (${username}).` };
+    return { ok: true, message: t("action.loginCreated", { name: fullName, username }) };
   });
   if (result.ok) {
     invalidate(TAGS.users);
@@ -53,9 +55,10 @@ export const setUserActive = guarded("setUserActive", async (id, active) => {
 
 export const resetPassword = guarded("resetPassword", async (_prev, formData) => {
   const me = await requireAdmin();
+  const { t } = await getI18n();
   const id = Number(formData.get("id"));
   const password = String(formData.get("password") ?? "");
-  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (password.length < 8) return { error: t("action.passwordLength") };
   const hash = await hashPassword(password);
 
   const user = await transaction(async (tx) => {
@@ -69,5 +72,5 @@ export const resetPassword = guarded("resetPassword", async (_prev, formData) =>
   if (id === me.id && user) {
     await setSessionCookie(user);
   }
-  return { ok: true, message: "Password updated — they've been signed out of other devices." };
+  return { ok: true, message: t("action.passwordUpdated") };
 });

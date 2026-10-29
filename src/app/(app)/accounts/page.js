@@ -3,13 +3,15 @@ import { ArrowDownLeft, BadgeIndianRupee, BookOpenCheck, ChevronLeft, ChevronRig
 import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { ATTENDANCE, EXPENSE_CATEGORIES, fmtDate, fmtTime, inr, qty, shiftDate, todayISO } from "@/lib/format";
+import { ATTENDANCE, EXPENSE_CATEGORIES, inr, qty, shiftDate, todayISO } from "@/lib/format";
+import { getI18n, pageTitle } from "@/lib/i18n/server";
 import { isDate } from "@/lib/validate";
 
-export const metadata = { title: "Daily accounts" };
+export const generateMetadata = pageTitle("nav.accounts");
 
 export default async function AccountsPage({ searchParams }) {
   await requireAdmin();
+  const { t, fmtDate, fmtTime } = await getI18n();
   const today = todayISO();
   const { date: requested } = await searchParams;
   const date = isDate(requested) && requested <= today ? requested : today;
@@ -54,34 +56,34 @@ export default async function AccountsPage({ searchParams }) {
 
   return (
     <>
-      <PageHead icon={BookOpenCheck} title="Daily accounts" subtitle={fmtDate(date)}>
+      <PageHead icon={BookOpenCheck} title={t("nav.accounts")} subtitle={fmtDate(date)}>
         <div className="date-nav">
-          <Link className="btn btn-sm" href={`/accounts?date=${shiftDate(date, -1)}`} aria-label="Previous day"><ChevronLeft size={16} /></Link>
+          <Link className="btn btn-sm" href={`/accounts?date=${shiftDate(date, -1)}`} aria-label={t("common.prevDay")}><ChevronLeft size={16} /></Link>
           <form className="row">
             <input className="input input-sm" type="date" name="date" defaultValue={date} max={today} />
-            <button className="btn btn-sm">Go</button>
+            <button className="btn btn-sm">{t("common.go")}</button>
           </form>
           {date < today && (
-            <Link className="btn btn-sm" href={`/accounts?date=${shiftDate(date, 1)}`} aria-label="Next day"><ChevronRight size={16} /></Link>
+            <Link className="btn btn-sm" href={`/accounts?date=${shiftDate(date, 1)}`} aria-label={t("common.nextDay")}><ChevronRight size={16} /></Link>
           )}
         </div>
       </PageHead>
 
       <div className="stats">
-        <Stat accent icon={Scale} label="Net cash" value={inr(net)} hint="cash in − expenses" />
-        <Stat icon={BadgeIndianRupee} label="Sales (delivered)" value={inr(sales)} hint={<>{deliveries.length} loads · {qty(sum(deliveries, "delivered_qty"))} qty</>} />
-        <Stat icon={HandCoins} tone="ok" label="Cash in" value={inr(cashIn)} hint={<>{inr(paidAtDelivery)} at delivery + {inr(laterPayments)} dues</>} />
-        <Stat icon={Receipt} tone="danger" label="Expenses" value={inr(expenseTotal)} />
-        <Stat icon={CreditCard} tone="brown" label="Credit given" value={inr(creditGiven)} hint="added to customer balances" />
-        <Stat icon={HardHat} label="Wages earned" value={inr(wages)} hint={`net after wages ${inr(net - wages)}`} />
+        <Stat accent icon={Scale} label={t("accounts.netCash")} value={inr(net)} hint={t("accounts.netCashHint")} />
+        <Stat icon={BadgeIndianRupee} label={t("accounts.sales")} value={inr(sales)} hint={t("accounts.salesHint", { n: deliveries.length, qty: qty(sum(deliveries, "delivered_qty")) })} />
+        <Stat icon={HandCoins} tone="ok" label={t("accounts.cashIn")} value={inr(cashIn)} hint={t("accounts.cashInHint", { atDelivery: inr(paidAtDelivery), dues: inr(laterPayments) })} />
+        <Stat icon={Receipt} tone="danger" label={t("nav.expenses")} value={inr(expenseTotal)} />
+        <Stat icon={CreditCard} tone="brown" label={t("accounts.creditGiven")} value={inr(creditGiven)} hint={t("accounts.creditHint")} />
+        <Stat icon={HardHat} label={t("accounts.wages")} value={inr(wages)} hint={t("accounts.wagesHint", { amount: inr(net - wages) })} />
       </div>
 
       <div className="stack">
-        <Section icon={Truck} title="Deliveries" subtitle={<>Also booked today: {booked.n} orders · {qty(booked.qty)} qty · {inr(booked.value)}</>}>
-          {deliveries.length === 0 ? <EmptyState icon={Truck} title="No deliveries on this day" /> : (
+        <Section icon={Truck} title={t("accounts.deliveries")} subtitle={t("accounts.alsoBooked", { n: booked.n, qty: qty(booked.qty), value: inr(booked.value) })}>
+          {deliveries.length === 0 ? <EmptyState icon={Truck} title={t("accounts.noDeliveries")} /> : (
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Time</th><th>Order</th><th>Customer</th><th>Vehicle</th><th className="num">Qty</th><th className="num">Total</th><th className="num">Paid</th><th className="num">Balance</th></tr></thead>
+                <thead><tr><th>{t("common.time")}</th><th>{t("common.order")}</th><th>{t("common.customer")}</th><th>{t("common.vehicle")}</th><th className="num">{t("common.qty")}</th><th className="num">{t("common.total")}</th><th className="num">{t("common.paid")}</th><th className="num">{t("common.balance")}</th></tr></thead>
                 <tbody>
                   {deliveries.map((d) => (
                     <tr key={d.id}>
@@ -96,15 +98,15 @@ export default async function AccountsPage({ searchParams }) {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot><tr><td colSpan={5}>Total</td><td className="num">{inr(sales)}</td><td className="num">{inr(paidAtDelivery)}</td><td className="num">{inr(creditGiven)}</td></tr></tfoot>
+                <tfoot><tr><td colSpan={5}>{t("common.total")}</td><td className="num">{inr(sales)}</td><td className="num">{inr(paidAtDelivery)}</td><td className="num">{inr(creditGiven)}</td></tr></tfoot>
               </table>
             </div>
           )}
         </Section>
 
         <div className="grid-2" style={{ alignItems: "start" }}>
-          <Section icon={ArrowDownLeft} title="Payments against dues" subtitle={`Total ${inr(laterPayments)}`}>
-            {payments.length === 0 ? <EmptyState icon={HandCoins} title="No payments received" /> : (
+          <Section icon={ArrowDownLeft} title={t("accounts.payments")} subtitle={t("common.totalOf", { amount: inr(laterPayments) })}>
+            {payments.length === 0 ? <EmptyState icon={HandCoins} title={t("accounts.noPayments")} /> : (
               <table className="table">
                 <tbody>
                   {payments.map((p) => (
@@ -118,15 +120,15 @@ export default async function AccountsPage({ searchParams }) {
             )}
           </Section>
 
-          <Section icon={Receipt} title="Expenses" subtitle={`Total ${inr(expenseTotal)}`} action={<HeadLink href={`/expenses?from=${date}&to=${date}`}>Details</HeadLink>}>
-            {byCategory.length === 0 ? <EmptyState icon={Receipt} title="No expenses" /> : (
+          <Section icon={Receipt} title={t("nav.expenses")} subtitle={t("common.totalOf", { amount: inr(expenseTotal) })} action={<HeadLink href={`/expenses?from=${date}&to=${date}`}>{t("common.details")}</HeadLink>}>
+            {byCategory.length === 0 ? <EmptyState icon={Receipt} title={t("accounts.noExpenses")} /> : (
               <table className="table">
                 <tbody>
                   {byCategory.map(([k, v]) => (
-                    <tr key={k}><td>{EXPENSE_CATEGORIES[k]}</td><td className="num">{inr(v)}</td></tr>
+                    <tr key={k}><td>{t(`expense.${k}`)}</td><td className="num">{inr(v)}</td></tr>
                   ))}
                 </tbody>
-                <tfoot><tr><td>Total</td><td className="num">{inr(expenseTotal)}</td></tr></tfoot>
+                <tfoot><tr><td>{t("common.total")}</td><td className="num">{inr(expenseTotal)}</td></tr></tfoot>
               </table>
             )}
           </Section>

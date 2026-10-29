@@ -6,45 +6,47 @@ import SubmitButton from "@/components/SubmitButton";
 import { addExpense, deleteExpense } from "@/app/actions/expenses";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { EXPENSE_CATEGORIES, fmtDate, inr, todayISO } from "@/lib/format";
+import { EXPENSE_CATEGORIES, inr, todayISO } from "@/lib/format";
+import { getI18n, pageTitle } from "@/lib/i18n/server";
 import { isDate } from "@/lib/validate";
 
-export const metadata = { title: "Expenses" };
+export const generateMetadata = pageTitle("nav.expenses");
 
 const CATEGORY_ICONS = { fuel: Fuel, maintenance: Wrench, transport: Truck, food_tea: UtensilsCrossed, other: MoreHorizontal };
 
 export default async function ExpensesPage({ searchParams }) {
   const user = await requireUser();
+  const { t } = await getI18n();
   const today = todayISO();
 
   return (
     <>
-      <PageHead icon={Receipt} title="Expenses" subtitle="Daily quarry running costs." />
-      <Section icon={ReceiptText} title="Add an expense" subtitle="Fuel, maintenance, transport, food/tea or other" className="section-gap">
+      <PageHead icon={Receipt} title={t("nav.expenses")} subtitle={t("expenses.subtitle")} />
+      <Section icon={ReceiptText} title={t("expenses.add")} subtitle={t("expenses.addSubtitle")} className="section-gap">
         <div className="card-pad">
         <ActionForm action={addExpense} resetOnSuccess>
           <div className="fields">
             <label className="field">
-              <span>Date</span>
+              <span>{t("common.date")}</span>
               <input className="input" type="date" name="expense_date" defaultValue={today} max={today} required />
             </label>
             <label className="field">
-              <span>Type</span>
+              <span>{t("common.type")}</span>
               <select className="select" name="category" required defaultValue="">
-                <option value="" disabled>Choose…</option>
-                {Object.entries(EXPENSE_CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                <option value="" disabled>{t("expenses.choose")}</option>
+                {Object.keys(EXPENSE_CATEGORIES).map((k) => <option key={k} value={k}>{t(`expense.${k}`)}</option>)}
               </select>
             </label>
             <label className="field">
-              <span>Amount (₹)</span>
+              <span>{t("common.amountRs")}</span>
               <input className="input num" type="number" name="amount" min="0.01" step="0.01" inputMode="decimal" required />
             </label>
           </div>
           <label className="field">
-            <span>Details</span>
-            <input className="input" name="description" placeholder="e.g. 40 L diesel for loader" />
+            <span>{t("common.details")}</span>
+            <input className="input" name="description" placeholder={t("expenses.placeholder")} />
           </label>
-          <div><SubmitButton className="btn btn-accent"><Save size={16} /> Save expense</SubmitButton></div>
+          <div><SubmitButton className="btn btn-accent"><Save size={16} /> {t("expenses.save")}</SubmitButton></div>
         </ActionForm>
         </div>
       </Section>
@@ -55,6 +57,7 @@ export default async function ExpensesPage({ searchParams }) {
 }
 
 async function ExpenseReport({ searchParams: sp, today }) {
+  const { t, fmtDate } = await getI18n();
   const from = isDate(sp.from) ? sp.from : `${today.slice(0, 8)}01`;
   const to = isDate(sp.to) ? sp.to : today;
   const category = EXPENSE_CATEGORIES[sp.category] ? sp.category : "";
@@ -80,45 +83,45 @@ async function ExpenseReport({ searchParams: sp, today }) {
   const grand = byCategory.reduce((s, r) => s + r.total, 0);
 
   return (
-    <Section icon={BarChart3} title="Expense report" subtitle={`Total ${inr(grand)}`}>
+    <Section icon={BarChart3} title={t("expenses.report")} subtitle={t("common.totalOf", { amount: inr(grand) })}>
       <form className="filters">
-        <label className="field"><span>From</span><input className="input" type="date" name="from" defaultValue={from} /></label>
-        <label className="field"><span>To</span><input className="input" type="date" name="to" defaultValue={to} /></label>
+        <label className="field"><span>{t("common.from")}</span><input className="input" type="date" name="from" defaultValue={from} /></label>
+        <label className="field"><span>{t("common.to")}</span><input className="input" type="date" name="to" defaultValue={to} /></label>
         <label className="field">
-          <span>Type</span>
+          <span>{t("common.type")}</span>
           <select className="select" name="category" defaultValue={category}>
-            <option value="">All types</option>
-            {Object.entries(EXPENSE_CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            <option value="">{t("expenses.allTypes")}</option>
+            {Object.keys(EXPENSE_CATEGORIES).map((k) => <option key={k} value={k}>{t(`expense.${k}`)}</option>)}
           </select>
         </label>
-        <button className="btn"><Filter size={16} /> Apply</button>
+        <button className="btn"><Filter size={16} /> {t("common.apply")}</button>
       </form>
 
       <div className="stats" style={{ padding: "16px 20px 0", marginBottom: 0 }}>
-        {Object.entries(EXPENSE_CATEGORIES).map(([k, v]) => (
-          <Stat key={k} icon={CATEGORY_ICONS[k]} tone={k === "fuel" ? "brown" : undefined} label={v} value={inr(totals[k] ?? 0)} />
+        {Object.keys(EXPENSE_CATEGORIES).map((k) => (
+          <Stat key={k} icon={CATEGORY_ICONS[k]} tone={k === "fuel" ? "brown" : undefined} label={t(`expense.${k}`)} value={inr(totals[k] ?? 0)} />
         ))}
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState icon={Receipt} title="No expenses in this range">Pick other dates or a different type.</EmptyState>
+        <EmptyState icon={Receipt} title={t("expenses.none")}>{t("expenses.noneText")}</EmptyState>
       ) : (
         <div className="table-wrap" style={{ marginTop: 16 }}>
           <table className="table">
             <thead>
-              <tr><th>Date</th><th>Type</th><th>Details</th><th>Entered by</th><th className="num">Amount</th><th /></tr>
+              <tr><th>{t("common.date")}</th><th>{t("common.type")}</th><th>{t("common.details")}</th><th>{t("expenses.enteredBy")}</th><th className="num">{t("common.amount")}</th><th /></tr>
             </thead>
             <tbody>
               {rows.map((e) => (
                 <tr key={e.id}>
                   <td className="nowrap">{fmtDate(e.expense_date)}</td>
-                  <td>{EXPENSE_CATEGORIES[e.category]}</td>
+                  <td>{t(`expense.${e.category}`)}</td>
                   <td className="muted">{e.description || "—"}</td>
                   <td>{e.full_name || "—"}</td>
                   <td className="num">{inr(e.amount)}</td>
                   <td className="right">
                     <form action={deleteExpense.bind(null, e.id)}>
-                      <ConfirmButton message="Delete this expense?" className="btn btn-ghost btn-sm btn-danger">
+                      <ConfirmButton message={t("expenses.deleteConfirm")} className="btn btn-ghost btn-sm btn-danger">
                         <Trash2 size={14} />
                       </ConfirmButton>
                     </form>

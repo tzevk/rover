@@ -1,16 +1,20 @@
 import Logo from "@/components/Logo";
+import PrefsToggle from "@/components/PrefsToggle";
 import { APP_NAME } from "@/lib/format";
+import { getI18n, pageTitle } from "@/lib/i18n/server";
 import LoginForm from "./LoginForm";
 
-export const metadata = { title: "Sign in" };
+export const generateMetadata = pageTitle("login.title");
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const { t } = await getI18n();
   // The last word of the name is set in gold italic, e.g. "Rover *Quarry*".
   const words = APP_NAME.trim().split(/\s+/);
   const last = words.pop();
 
   return (
     <main className="auth">
+      <PrefsToggle className="prefs-dark" />
       <div className="auth-scene" aria-hidden="true">
         <div className="auth-rings" />
         <div className="auth-glow" />
@@ -30,22 +34,22 @@ export default function LoginPage() {
 
       <section className="auth-hero">
         <Logo size={64} />
-        <p className="auth-kicker">Quarry operations</p>
+        <p className="auth-kicker">{t("login.kicker")}</p>
         <h1 className="auth-title">
           {words.length > 0 && <>{words.join(" ")} </>}
           <em>{last}</em>
         </h1>
-        <p className="auth-tagline">Orders, dispatch, customer ledgers and the day&apos;s accounts, all in one calm place.</p>
+        <p className="auth-tagline">{t("login.tagline")}</p>
         <ul className="auth-points">
-          <li>Book &amp; dispatch</li>
-          <li>Live balances</li>
-          <li>Daily accounts</li>
+          <li>{t("login.point1")}</li>
+          <li>{t("login.point2")}</li>
+          <li>{t("login.point3")}</li>
         </ul>
       </section>
 
       <section className="auth-panel">
         <LoginForm />
-        <p className="auth-foot">Access is managed by the owner. Forgot your password? Ask the Admin to reset it.</p>
+        <p className="auth-foot">{t("login.foot")}</p>
       </section>
     </main>
   );

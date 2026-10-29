@@ -7,17 +7,19 @@ import { requireAdmin, requireUser } from "@/lib/auth";
 import { audit, transaction } from "@/lib/db";
 import { EXPENSE_CATEGORIES, inr, todayISO } from "@/lib/format";
 import { isDate, num, text } from "@/lib/validate";
+import { getI18n } from "@/lib/i18n/server";
 
 export const addExpense = guarded("addExpense", async (_prev, formData) => {
   const user = await requireUser();
+  const { t } = await getI18n();
   const date = String(formData.get("expense_date") || "");
   const category = String(formData.get("category") || "");
   const amount = num(formData.get("amount"));
   const description = text(formData.get("description"));
 
-  if (!isDate(date) || date > todayISO()) return { error: "Pick a valid date (not in the future)." };
-  if (!EXPENSE_CATEGORIES[category]) return { error: "Choose an expense type." };
-  if (!(amount > 0)) return { error: "Amount must be more than 0." };
+  if (!isDate(date) || date > todayISO()) return { error: t("common.pickValidDate") };
+  if (!EXPENSE_CATEGORIES[category]) return { error: t("action.expenseType") };
+  if (!(amount > 0)) return { error: t("common.amountPositive") };
 
   await transaction(async (tx) => {
     const res = await tx.query(
@@ -28,7 +30,7 @@ export const addExpense = guarded("addExpense", async (_prev, formData) => {
   });
   invalidate(TAGS.expenses);
   revalidatePath("/expenses");
-  return { ok: true, message: `${EXPENSE_CATEGORIES[category]} expense of ${inr(amount)} saved.` };
+  return { ok: true, message: t("action.expenseSaved", { category: t(`expense.${category}`), amount: inr(amount) }) };
 });
 
 export const deleteExpense = guarded("deleteExpense", async (id) => {

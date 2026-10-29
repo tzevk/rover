@@ -6,6 +6,7 @@ import { cached, TAGS } from "@/lib/cache";
 import { query } from "@/lib/db";
 import { APP_NAME } from "@/lib/format";
 import { longDate } from "@/lib/greeting";
+import { getLang } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export default async function AppLayout({ children }) {
     query("SELECT COUNT(*) AS n FROM orders WHERE status = 'pending'"),
   );
   return (
-    <Shell user={user} appName={APP_NAME} pendingCount={n} today={longDate()} initialCollapsed={collapsed}>
+    <Shell user={user} appName={APP_NAME} pendingCount={n} today={longDate(new Date(), await getLang())} initialCollapsed={collapsed}>
       {children}
     </Shell>
   );

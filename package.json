@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "node tests/run.mjs",
+    "i18n:check": "node scripts/check-i18n.mjs",
     "db:migrate": "node scripts/db.mjs migrate",
     "db:setup": "node scripts/db.mjs migrate",
     "db:backup": "node scripts/db.mjs backup",

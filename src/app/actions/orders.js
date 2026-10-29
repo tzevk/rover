@@ -8,22 +8,24 @@ import { requireAdmin, requireUser } from "@/lib/auth";
 import { audit, transaction } from "@/lib/db";
 import { inr } from "@/lib/format";
 import { dateTimeLocal, num, text } from "@/lib/validate";
+import { getI18n } from "@/lib/i18n/server";
 
 // Totals are computed by the database (ROUND(qty × rate, 2)) — the same formula its CHECK rule enforces.
 
 export const createOrder = guarded("createOrder", async (_prev, formData) => {
   const user = await requireUser();
+  const { t } = await getI18n();
   const customerId = Number(formData.get("customer_id"));
   const orderedQty = num(formData.get("ordered_qty"));
   const rate = num(formData.get("rate"));
 
-  if (!customerId) return { error: "Choose a customer (or add a new one)." };
-  if (!(orderedQty > 0)) return { error: "Quantity must be more than 0." };
-  if (!(rate > 0)) return { error: "Rate must be more than 0." };
+  if (!customerId) return { error: t("action.chooseCustomer") };
+  if (!(orderedQty > 0)) return { error: t("action.qtyPositive") };
+  if (!(rate > 0)) return { error: t("action.ratePositive") };
 
   const result = await transaction(async (tx) => {
     const [customer] = await tx.query("SELECT name FROM customers WHERE id = ?", [customerId]);
-    if (!customer) return { error: "That customer no longer exists." };
+    if (!customer) return { error: t("action.customerGone") };
     const res = await tx.query(
       `INSERT INTO orders (customer_id, ordered_qty, rate, total_amount, booked_by, request_id)
        VALUES (?, ?, ?, ROUND(? * ?, 2), ?, ?)`,
@@ -31,7 +33,7 @@ export const createOrder = guarded("createOrder", async (_prev, formData) => {
     );
     const [{ total_amount: total }] = await tx.query("SELECT total_amount FROM orders WHERE id = ?", [res.insertId]);
     await audit(tx, user, "order.book", "order", res.insertId, { customerId, orderedQty, rate, total });
-    return { ok: true, message: `Order #${res.insertId} booked for ${customer.name} — ${inr(total)}`, id: res.insertId };
+    return { ok: true, message: t("action.orderBooked", { id: res.insertId, name: customer.name, total: inr(total) }), id: res.insertId };
   });
   // Only after the transaction has committed, so no reader can re-cache the old state.
   if (result.ok) {
@@ -43,6 +45,7 @@ export const createOrder = guarded("createOrder", async (_prev, formData) => {
 
 export const deliverOrder = guarded("deliverOrder", async (_prev, formData) => {
   const user = await requireUser();
+  const { t } = await getI18n();
   const id = Number(formData.get("id"));
   const vehicle = text(formData.get("vehicle_number"), 20).toUpperCase().replace(/\s+/g, " ");
   const arrival = dateTimeLocal(formData.get("arrival_time"));
@@ -50,17 +53,17 @@ export const deliverOrder = guarded("deliverOrder", async (_prev, formData) => {
   const deliveredQty = num(formData.get("delivered_qty"));
   const paid = num(formData.get("paid_amount") || 0);
 
-  if (!vehicle) return { error: "Enter the vehicle number." };
-  if (!arrival || !dispatch) return { error: "Enter both vehicle arrival and dispatch time." };
-  if (dispatch < arrival) return { error: "Dispatch time can't be before arrival time." };
-  if (!(deliveredQty > 0)) return { error: "Delivered quantity must be more than 0." };
-  if (!(paid >= 0)) return { error: "Paid amount can't be negative." };
+  if (!vehicle) return { error: t("action.vehicle") };
+  if (!arrival || !dispatch) return { error: t("action.times") };
+  if (dispatch < arrival) return { error: t("action.dispatchBeforeArrival") };
+  if (!(deliveredQty > 0)) return { error: t("action.deliveredPositive") };
+  if (!(paid >= 0)) return { error: t("action.paidNegative") };
 
   const result = await transaction(async (tx) => {
     // Lock the row so two people can't complete the same order at once.
     const [order] = await tx.query("SELECT status FROM orders WHERE id = ? FOR UPDATE", [id]);
-    if (!order) return { error: "Order not found." };
-    if (order.status !== "pending") return { error: "This order has already been completed or cancelled." };
+    if (!order) return { error: t("action.orderNotFound") };
+    if (order.status !== "pending") return { error: t("action.orderClosed") };
 
     await tx.query(
       `UPDATE orders SET status = 'delivered', vehicle_number = ?, arrival_time = ?, dispatch_time = ?,

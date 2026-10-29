@@ -3,8 +3,10 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, Lock, User } from "lucide-react";
 import { login } from "@/app/actions/auth";
+import { useI18n } from "@/components/I18n";
 
 export default function LoginForm() {
+  const { t } = useI18n();
   const [state, formAction, pending] = useActionState(login, null);
   const [step, setStep] = useState("user");
   const [username, setUsername] = useState("");
@@ -26,7 +28,7 @@ export default function LoginForm() {
   function next(e) {
     e?.preventDefault();
     if (!username.trim()) {
-      setUserError("Enter your username to continue.");
+      setUserError(t("login.enterUsername"));
       return;
     }
     setUserError("");
@@ -43,10 +45,10 @@ export default function LoginForm() {
     <form className="auth-card" action={formAction} onSubmit={onSubmit} noValidate>
       <div className="auth-steps" data-step={step}>
         <div className="auth-step" inert={step !== "user"}>
-          <h2>Welcome back</h2>
-          <p className="auth-sub">Sign in to manage today&apos;s orders and dispatch.</p>
+          <h2>{t("login.welcome")}</h2>
+          <p className="auth-sub">{t("login.sub")}</p>
 
-          <label className="auth-label" htmlFor="username">Username</label>
+          <label className="auth-label" htmlFor="username">{t("common.username")}</label>
           <div className={`auth-input${userError ? " has-error" : ""}`}>
             <User size={18} />
             <input
@@ -56,7 +58,7 @@ export default function LoginForm() {
               autoComplete="username"
               autoCapitalize="none"
               spellCheck={false}
-              placeholder="e.g. ramesh"
+              placeholder={t("login.usernamePlaceholder")}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
@@ -64,24 +66,24 @@ export default function LoginForm() {
           <p className="auth-error" role="alert">{userError}</p>
 
           <button type="submit" className="auth-btn">
-            Continue <ArrowRight size={18} />
+            {t("login.continue")} <ArrowRight size={18} />
           </button>
         </div>
 
         <div className="auth-step" inert={step !== "pass"}>
           <button type="button" className="auth-back" onClick={() => setStep("user")}>
-            <ArrowLeft size={16} /> Back
+            <ArrowLeft size={16} /> {t("login.back")}
           </button>
 
           <div className="auth-who">
             <span className="auth-avatar">{initial}</span>
             <div>
-              <span className="auth-who-label">Signing in as</span>
+              <span className="auth-who-label">{t("login.signingInAs")}</span>
               <strong>{username.trim() || "—"}</strong>
             </div>
           </div>
 
-          <label className="auth-label" htmlFor="password">Password</label>
+          <label className="auth-label" htmlFor="password">{t("common.password")}</label>
           <div className={`auth-input${state?.error ? " has-error" : ""}`}>
             <Lock size={18} />
             <input
@@ -90,13 +92,13 @@ export default function LoginForm() {
               name="password"
               type={showPw ? "text" : "password"}
               autoComplete="current-password"
-              placeholder="Enter your password"
+              placeholder={t("login.passwordPlaceholder")}
             />
             <button
               type="button"
               className="auth-eye"
               onClick={() => setShowPw((v) => !v)}
-              aria-label={showPw ? "Hide password" : "Show password"}
+              aria-label={t(showPw ? "login.hidePassword" : "login.showPassword")}
             >
               {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -104,7 +106,7 @@ export default function LoginForm() {
           <p className="auth-error" role="alert">{state?.error}</p>
 
           <button type="submit" className="auth-btn" disabled={pending}>
-            {pending ? <><Loader2 size={18} className="spin" /> Signing in…</> : <>Sign in <ArrowRight size={18} /></>}
+            {pending ? <><Loader2 size={18} className="spin" /> {t("login.signingIn")}</> : <>{t("login.title")} <ArrowRight size={18} /></>}
           </button>
         </div>
       </div>

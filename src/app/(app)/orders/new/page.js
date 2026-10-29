@@ -3,28 +3,30 @@ import { PageHead, Section } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { cached, TAGS } from "@/lib/cache";
 import { query } from "@/lib/db";
+import { getI18n, pageTitle } from "@/lib/i18n/server";
 import NewOrderForm from "./NewOrderForm";
 
-export const metadata = { title: "New order" };
+export const generateMetadata = pageTitle("nav.newOrder");
 
 export default async function NewOrderPage() {
   await requireUser();
+  const { t } = await getI18n();
   // Workers see names and phones only — never balances.
   const customers = await cached("customer-list", { tags: [TAGS.customers], ttl: 300 }, () =>
     query("SELECT id, name, phone FROM customers ORDER BY name"),
   );
   return (
     <>
-      <PageHead icon={PlusCircle} title="Book a new order" subtitle="Pick the customer, enter quantity and rate. The total works itself out." />
+      <PageHead icon={PlusCircle} title={t("newOrder.title")} subtitle={t("newOrder.subtitle")} />
       <div className="split">
-        <Section icon={ClipboardPen} title="Order details" subtitle="All three fields are required">
+        <Section icon={ClipboardPen} title={t("newOrder.details")} subtitle={t("newOrder.allRequired")}>
           <div className="card-pad"><NewOrderForm customers={customers} /></div>
         </Section>
-        <Section icon={Info} title="How booking works" className="aside-card">
+        <Section icon={Info} title={t("newOrder.how")} className="aside-card">
           <ol className="steps">
-            <li><strong>Choose the customer.</strong> Type a name or phone. New customer? Add them right from the list.</li>
-            <li><strong>Enter quantity and rate.</strong> The total is calculated as you type.</li>
-            <li><strong>Book it.</strong> The order appears under Pending deliveries until its vehicle is dispatched.</li>
+            <li><strong>{t("newOrder.step1")}</strong> {t("newOrder.step1Text")}</li>
+            <li><strong>{t("newOrder.step2")}</strong> {t("newOrder.step2Text")}</li>
+            <li><strong>{t("newOrder.step3")}</strong> {t("newOrder.step3Text")}</li>
           </ol>
         </Section>
       </div>

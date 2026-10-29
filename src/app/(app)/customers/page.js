@@ -8,11 +8,13 @@ import { requireAdmin } from "@/lib/auth";
 import { cached, TAGS } from "@/lib/cache";
 import { CUSTOMER_BALANCES, query } from "@/lib/db";
 import { inr } from "@/lib/format";
+import { getI18n, pageTitle } from "@/lib/i18n/server";
 
-export const metadata = { title: "Customers & balances" };
+export const generateMetadata = pageTitle("nav.customers");
 
 export default async function CustomersPage({ searchParams }) {
   await requireAdmin();
+  const { t } = await getI18n();
   const { q = "", show = "all" } = await searchParams;
   const like = `%${q.trim()}%`;
   const customers = await cached(`balances:${show}:${q.trim()}`, { tags: [TAGS.customers, TAGS.orders, TAGS.payments], ttl: 60 }, () => query(
@@ -28,53 +30,53 @@ export default async function CustomersPage({ searchParams }) {
 
   return (
     <>
-      <PageHead icon={Contact} title="Customers & balances" subtitle="Outstanding = delivered value − paid at delivery − later payments." />
+      <PageHead icon={Contact} title={t("nav.customers")} subtitle={t("customers.subtitle")} />
 
       <div className="stats">
-        <Stat accent icon={Wallet} label="Outstanding" value={inr(totals.outstanding)} />
-        <Stat icon={BadgeIndianRupee} label="Total billed" value={inr(totals.billed)} />
-        <Stat icon={HandCoins} tone="ok" label="Total received" value={inr(totals.paid)} />
-        <Stat icon={Users} tone="brown" label="Customers" value={customers.length} />
+        <Stat accent icon={Wallet} label={t("customers.outstanding")} value={inr(totals.outstanding)} />
+        <Stat icon={BadgeIndianRupee} label={t("customers.totalBilled")} value={inr(totals.billed)} />
+        <Stat icon={HandCoins} tone="ok" label={t("customers.totalReceived")} value={inr(totals.paid)} />
+        <Stat icon={Users} tone="brown" label={t("common.customers")} value={customers.length} />
       </div>
 
       <details className="card" style={{ marginBottom: 20 }}>
-        <summary><UserPlus size={18} /> Add a customer</summary>
+        <summary><UserPlus size={18} /> {t("customers.addSummary")}</summary>
         <div className="card-pad">
           <ActionForm action={createCustomer} resetOnSuccess>
             <div className="fields">
-              <label className="field"><span>Name *</span><input className="input" name="name" required /></label>
-              <label className="field"><span>Phone</span><input className="input" name="phone" type="tel" /></label>
-              <label className="field"><span>Address</span><input className="input" name="address" /></label>
+              <label className="field"><span>{t("common.nameRequired")}</span><input className="input" name="name" required /></label>
+              <label className="field"><span>{t("common.phone")}</span><input className="input" name="phone" type="tel" /></label>
+              <label className="field"><span>{t("common.address")}</span><input className="input" name="address" /></label>
             </div>
-            <div><SubmitButton><UserPlus size={16} /> Add customer</SubmitButton></div>
+            <div><SubmitButton><UserPlus size={16} /> {t("customers.add")}</SubmitButton></div>
           </ActionForm>
         </div>
       </details>
 
-      <Section icon={Contact} title="Balance report" subtitle="Highest outstanding first">
+      <Section icon={Contact} title={t("home.balanceReport")} subtitle={t("customers.highestFirst")}>
         <form className="filters">
           <label className="field" style={{ flex: 1 }}>
-            <span>Search</span>
-            <input className="input" name="q" defaultValue={q} placeholder="Name or phone" />
+            <span>{t("common.search")}</span>
+            <input className="input" name="q" defaultValue={q} placeholder={t("customers.searchPlaceholder")} />
           </label>
           <label className="field">
-            <span>Show</span>
+            <span>{t("customers.show")}</span>
             <select className="select" name="show" defaultValue={show}>
-              <option value="all">All customers</option>
-              <option value="due">Only with balance due</option>
+              <option value="all">{t("customers.showAll")}</option>
+              <option value="due">{t("customers.showDue")}</option>
             </select>
           </label>
-          <button className="btn"><Search size={16} /> Apply</button>
+          <button className="btn"><Search size={16} /> {t("common.apply")}</button>
         </form>
         {customers.length === 0 ? (
-          <EmptyState icon={Users} title="No customers yet">Add one above, or from the booking screen.</EmptyState>
+          <EmptyState icon={Users} title={t("customers.none")}>{t("customers.noneText")}</EmptyState>
         ) : (
           <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Customer</th><th>Phone</th><th>Address</th>
-                  <th className="num">Deliveries</th><th className="num">Billed</th><th className="num">Received</th><th className="num">Outstanding</th>
+                  <th>{t("common.customer")}</th><th>{t("common.phone")}</th><th>{t("common.address")}</th>
+                  <th className="num">{t("customers.deliveries")}</th><th className="num">{t("customers.billed")}</th><th className="num">{t("customers.received")}</th><th className="num">{t("customers.outstanding")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -87,7 +89,7 @@ export default async function CustomersPage({ searchParams }) {
                     <td className="num">{inr(c.billed)}</td>
                     <td className="num">{inr(c.paid)}</td>
                     <td className={`num ${c.outstanding > 0 ? "due" : c.outstanding < 0 ? "credit" : ""}`}>
-                      {c.outstanding < 0 ? `${inr(-c.outstanding)} adv.` : inr(c.outstanding)}
+                      {c.outstanding < 0 ? t("customers.advance", { amount: inr(-c.outstanding) }) : inr(c.outstanding)}
                     </td>
                   </tr>
                 ))}

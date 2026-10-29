@@ -5,22 +5,24 @@ import { invalidate, TAGS } from "@/lib/cache";
 import { guarded } from "@/lib/action";
 import { requireUser } from "@/lib/auth";
 import { audit, transaction } from "@/lib/db";
-import { ATTENDANCE, fmtDate, todayISO } from "@/lib/format";
+import { ATTENDANCE, todayISO } from "@/lib/format";
+import { getI18n } from "@/lib/i18n/server";
 import { isDate } from "@/lib/validate";
 
 export const saveAttendance = guarded("saveAttendance", async (_prev, formData) => {
   const user = await requireUser();
+  const { t, fmtDate } = await getI18n();
   const today = todayISO();
   // Workers can only mark today; the Admin can correct any past day.
   const date = user.role === "admin" ? String(formData.get("date") || today) : today;
-  if (!isDate(date) || date > today) return { error: "Pick a valid date (not in the future)." };
+  if (!isDate(date) || date > today) return { error: t("common.pickValidDate") };
 
   const rows = [];
   for (const [key, value] of formData.entries()) {
     const m = key.match(/^s_(\d+)$/);
     if (m && ATTENDANCE[value]) rows.push([Number(m[1]), date, value, user.id]);
   }
-  if (rows.length === 0) return { error: "Mark at least one person." };
+  if (rows.length === 0) return { error: t("action.markOne") };
 
   // Saving twice is harmless: one row per person per day, updated in place.
   await transaction(async (tx) => {
@@ -35,5 +37,5 @@ export const saveAttendance = guarded("saveAttendance", async (_prev, formData) 
   });
   invalidate(TAGS.attendance);
   revalidatePath("/attendance");
-  return { ok: true, message: `Attendance saved for ${rows.length} ${rows.length === 1 ? "person" : "people"} on ${fmtDate(date)}.` };
+  return { ok: true, message: t("action.attendanceSaved", { count: rows.length, date: fmtDate(date) }) };
 });

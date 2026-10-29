@@ -7,10 +7,11 @@ import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { cached, TAGS } from "@/lib/cache";
 import { CUSTOMER_BALANCES, query } from "@/lib/db";
-import { fmtDateTime, inr, qty, todayISO } from "@/lib/format";
-import { firstName, greeting } from "@/lib/greeting";
+import { inr, qty, todayISO } from "@/lib/format";
+import { firstName, greetingKey } from "@/lib/greeting";
+import { getI18n, pageTitle } from "@/lib/i18n/server";
 
-export const metadata = { title: "Home" };
+export const generateMetadata = pageTitle("nav.home");
 
 export default async function HomePage() {
   const user = await requireUser();
@@ -18,6 +19,7 @@ export default async function HomePage() {
 }
 
 async function WorkerHome({ user }) {
+  const { t } = await getI18n();
   const today = todayISO();
   // Only counts of the worker's own work today — no amounts, no completed-order details.
   const [[{ pending }], [{ booked }], [{ delivered }]] = await cached(
@@ -28,21 +30,21 @@ async function WorkerHome({ user }) {
     ]),
   );
   const tiles = [
-    { href: "/orders/new", icon: PlusCircle, title: "Book new order", text: "Customer, quantity and rate." },
-    { href: "/deliveries", icon: Truck, title: "Pending deliveries", text: "Vehicle, quantity and payment.", count: pending },
-    { href: "/expenses", icon: Receipt, title: "Add expense", text: "Fuel, maintenance, transport, tea." },
-    { href: "/attendance", icon: CalendarCheck, title: "Today's attendance", text: "Present, absent or half-day." },
+    { href: "/orders/new", icon: PlusCircle, title: t("home.tileBook"), text: t("home.tileBookText") },
+    { href: "/deliveries", icon: Truck, title: t("nav.deliveries"), text: t("home.tileDeliverText"), count: pending },
+    { href: "/expenses", icon: Receipt, title: t("home.tileExpense"), text: t("home.tileExpenseText") },
+    { href: "/attendance", icon: CalendarCheck, title: t("home.tileAttendance"), text: t("home.tileAttendanceText") },
   ];
 
   return (
     <>
-      <PageHead icon={Sun} eyebrow={`${greeting()}, ${firstName(user.full_name)}`} title="Your day at the quarry"
-        subtitle="Everything you need for today, one tap away." />
+      <PageHead icon={Sun} eyebrow={`${t(greetingKey())}, ${firstName(user.full_name)}`} title={t("home.workerTitle")}
+        subtitle={t("home.workerSubtitle")} />
 
       <div className="stats">
-        <Stat icon={PlusCircle} label="You booked today" value={booked} hint={booked === 1 ? "order" : "orders"} />
-        <Stat icon={CircleCheckBig} tone="ok" label="You delivered today" value={delivered} hint={delivered === 1 ? "load" : "loads"} />
-        <Stat icon={Clock} tone="brown" label="Waiting to deliver" value={pending} hint="across the quarry" />
+        <Stat icon={PlusCircle} label={t("home.youBooked")} value={booked} hint={t("home.ordersUnit", { count: booked })} />
+        <Stat icon={CircleCheckBig} tone="ok" label={t("home.youDelivered")} value={delivered} hint={t("home.loadsUnit", { count: delivered })} />
+        <Stat icon={Clock} tone="brown" label={t("home.waiting")} value={pending} hint={t("home.acrossQuarry")} />
       </div>
 
       <div className="tiles">
@@ -65,6 +67,7 @@ async function WorkerHome({ user }) {
 }
 
 async function AdminDashboard({ user }) {
+  const { t, fmtDateTime } = await getI18n();
   const today = todayISO();
   const tags = [TAGS.orders, TAGS.payments, TAGS.expenses, TAGS.customers];
   const [[pending], [delivered], [payments], [expenses], [outstanding], oldestPending, topDue] = await cached(
@@ -90,24 +93,24 @@ async function AdminDashboard({ user }) {
 
   return (
     <>
-      <PageHead icon={LayoutDashboard} eyebrow={`${greeting()}, ${firstName(user.full_name)}`} title="Dashboard"
-        subtitle="Here's how the quarry is doing today.">
-        <Link href="/accounts" className="btn"><Scale size={16} /> Daily accounts</Link>
+      <PageHead icon={LayoutDashboard} eyebrow={`${t(greetingKey())}, ${firstName(user.full_name)}`} title={t("home.dashboard")}
+        subtitle={t("home.dashboardSubtitle")}>
+        <Link href="/accounts" className="btn"><Scale size={16} /> {t("nav.accounts")}</Link>
       </PageHead>
 
       <div className="stats">
-        <Stat accent icon={Wallet} label="Total outstanding" value={inr(outstanding.total)} hint="across all customers" />
-        <Stat icon={BadgeIndianRupee} label="Today's sales" value={inr(delivered.sales)} hint={`${delivered.n} deliveries · ${qty(delivered.qty)} qty`} />
-        <Stat icon={HandCoins} tone="ok" label="Collected today" value={inr(collected)} hint="at delivery + later payments" />
-        <Stat icon={Receipt} tone="danger" label="Expenses today" value={inr(expenses.total)} hint={`net cash ${inr(collected - expenses.total)}`} />
-        <Stat icon={Truck} tone="brown" label="Pending deliveries" value={pending.n} hint={`worth ${inr(pending.value)}`} />
+        <Stat accent icon={Wallet} label={t("home.totalOutstanding")} value={inr(outstanding.total)} hint={t("home.acrossCustomers")} />
+        <Stat icon={BadgeIndianRupee} label={t("home.todaysSales")} value={inr(delivered.sales)} hint={t("home.salesHint", { n: delivered.n, qty: qty(delivered.qty) })} />
+        <Stat icon={HandCoins} tone="ok" label={t("home.collectedToday")} value={inr(collected)} hint={t("home.collectedHint")} />
+        <Stat icon={Receipt} tone="danger" label={t("home.expensesToday")} value={inr(expenses.total)} hint={t("home.netCashHint", { amount: inr(collected - expenses.total) })} />
+        <Stat icon={Truck} tone="brown" label={t("nav.deliveries")} value={pending.n} hint={t("home.worthHint", { amount: inr(pending.value) })} />
       </div>
 
       <div className="grid-2">
-        <Section icon={Clock} title="Waiting longest" subtitle="Oldest pending orders first"
-          action={<HeadLink href="/deliveries">All pending</HeadLink>}>
+        <Section icon={Clock} title={t("home.waitingLongest")} subtitle={t("home.oldestFirst")}
+          action={<HeadLink href="/deliveries">{t("home.allPending")}</HeadLink>}>
           {oldestPending.length === 0 ? (
-            <EmptyState icon={CircleCheckBig} title="All caught up">No pending orders right now.</EmptyState>
+            <EmptyState icon={CircleCheckBig} title={t("home.allCaughtUp")}>{t("home.noPending")}</EmptyState>
           ) : (
             <div className="table-wrap">
               <table className="table">
@@ -128,10 +131,10 @@ async function AdminDashboard({ user }) {
           )}
         </Section>
 
-        <Section icon={Wallet} title="Highest balances" subtitle="Customers who owe the most"
-          action={<HeadLink href="/customers">Balance report</HeadLink>}>
+        <Section icon={Wallet} title={t("home.highestBalances")} subtitle={t("home.oweMost")}
+          action={<HeadLink href="/customers">{t("home.balanceReport")}</HeadLink>}>
           {topDue.length === 0 ? (
-            <EmptyState icon={CircleCheckBig} title="Nothing owed">Every customer is fully paid up.</EmptyState>
+            <EmptyState icon={CircleCheckBig} title={t("home.nothingOwed")}>{t("home.allPaid")}</EmptyState>
           ) : (
             <div className="table-wrap">
               <table className="table">

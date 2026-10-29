@@ -18,24 +18,30 @@ export function shiftDate(iso, days) {
   return d.toISOString().slice(0, 10);
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// Spelled out (not Intl) so server and browser always agree. Marathi forms are CLDR's;
+// म.पू. / म.उ. are the standard abbreviations of मध्यान्हपूर्व / मध्यान्होत्तर.
+const MONTHS = {
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  mr: ["जाने", "फेब्रु", "मार्च", "एप्रि", "मे", "जून", "जुलै", "ऑग", "सप्टें", "ऑक्टो", "नोव्हें", "डिसें"],
+};
+const AMPM = { en: ["am", "pm"], mr: ["म.पू.", "म.उ."] };
 
 // DB values arrive as strings ("2026-10-28" / "2026-10-28 14:05:00") thanks to dateStrings.
-export function fmtDate(s) {
+export function fmtDate(s, lang = "en") {
   if (!s) return "—";
   const [y, m, d] = s.slice(0, 10).split("-");
-  return `${Number(d)} ${MONTHS[Number(m) - 1]} ${y}`;
+  return `${Number(d)} ${(MONTHS[lang] ?? MONTHS.en)[Number(m) - 1]} ${y}`;
 }
 
-export function fmtTime(s) {
+export function fmtTime(s, lang = "en") {
   if (!s || s.length < 16) return "";
   let [h, min] = s.slice(11, 16).split(":").map(Number);
-  const ampm = h >= 12 ? "pm" : "am";
+  const ampm = (AMPM[lang] ?? AMPM.en)[h >= 12 ? 1 : 0];
   h = h % 12 || 12;
   return `${h}:${String(min).padStart(2, "0")} ${ampm}`;
 }
 
-export const fmtDateTime = (s) => (s ? `${fmtDate(s)}, ${fmtTime(s)}` : "—");
+export const fmtDateTime = (s, lang = "en") => (s ? `${fmtDate(s, lang)}, ${fmtTime(s, lang)}` : "—");
 
 export const EXPENSE_CATEGORIES = {
   fuel: "Fuel",

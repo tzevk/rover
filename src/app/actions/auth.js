@@ -8,6 +8,7 @@ import { burnVerifyTime, hashPassword, needsRehash, verifyPassword } from "@/lib
 import { SESSION_COOKIE } from "@/lib/session";
 import { setSessionCookie } from "@/lib/session-cookie";
 import { text } from "@/lib/validate";
+import { getI18n } from "@/lib/i18n/server";
 
 // Simple brute-force brake: 5 wrong passwords locks that username+IP for 10 minutes.
 const failures = (globalThis.__rqLoginFailures ??= new Map());
@@ -15,16 +16,17 @@ const MAX_TRIES = 5;
 const LOCK_MS = 10 * 60 * 1000;
 
 export async function login(_prev, formData) {
+  const { t } = await getI18n();
   const username = text(formData.get("username"), 50).toLowerCase();
   const password = String(formData.get("password") ?? "");
-  if (!username || !password) return { error: "Enter your username and password." };
+  if (!username || !password) return { error: t("action.loginMissing") };
 
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() || "local";
   const key = `${username}|${ip}`;
   const rec = failures.get(key);
   if (rec && rec.count >= MAX_TRIES && Date.now() - rec.at < LOCK_MS) {
     const mins = Math.ceil((LOCK_MS - (Date.now() - rec.at)) / 60000);
-    return { error: `Too many attempts. Try again in ${mins} min.` };
+    return { error: t("action.tooMany", { mins }) };
   }
 
   let user;
@@ -35,7 +37,7 @@ export async function login(_prev, formData) {
     );
   } catch (err) {
     console.error("login query failed", err);
-    return { error: "Can't reach the database right now. Please try again." };
+    return { error: t("action.loginOffline") };
   }
 
   // Unknown usernames take as long as wrong passwords, so they can't be discovered by timing.
@@ -43,7 +45,7 @@ export async function login(_prev, formData) {
   if (!ok) {
     const prev = rec && Date.now() - rec.at < LOCK_MS ? rec.count : 0;
     failures.set(key, { count: prev + 1, at: Date.now() });
-    return { error: user && !user.active ? "This account has been disabled." : "Incorrect username or password." };
+    return { error: t(user && !user.active ? "action.disabled" : "action.wrongLogin") };
   }
   failures.delete(key);
 

@@ -9,25 +9,28 @@ import {
 } from "lucide-react";
 import Logo from "./Logo";
 import NavProgress from "./NavProgress";
+import PrefsToggle from "./PrefsToggle";
+import { useI18n } from "./I18n";
 import { logout } from "@/app/actions/auth";
-import { SIDEBAR_COOKIE } from "@/lib/ui-prefs";
+import { setPrefCookie, SIDEBAR_COOKIE } from "@/lib/ui-prefs";
 
 const WORK = [
-  { href: "/", label: "Home", short: "Home", icon: Home },
-  { href: "/orders/new", label: "New order", short: "Book", icon: PlusCircle },
-  { href: "/deliveries", label: "Pending deliveries", short: "Deliver", icon: Truck, count: "pending" },
-  { href: "/expenses", label: "Expenses", short: "Expenses", icon: Receipt },
-  { href: "/attendance", label: "Attendance", short: "Attend", icon: CalendarCheck },
+  { href: "/", label: "nav.home", short: "nav.homeShort", icon: Home },
+  { href: "/orders/new", label: "nav.newOrder", short: "nav.newOrderShort", icon: PlusCircle },
+  { href: "/deliveries", label: "nav.deliveries", short: "nav.deliveriesShort", icon: Truck, count: "pending" },
+  { href: "/expenses", label: "nav.expenses", short: "nav.expensesShort", icon: Receipt },
+  { href: "/attendance", label: "nav.attendance", short: "nav.attendanceShort", icon: CalendarCheck },
 ];
 
+// label / short are translation keys.
 const ADMIN = [
-  { href: "/orders", label: "Order history", icon: ClipboardList },
-  { href: "/customers", label: "Customers & balances", icon: Contact },
-  { href: "/accounts", label: "Daily accounts", icon: BookOpenCheck },
-  { href: "/payroll", label: "Payroll", icon: Wallet },
-  { href: "/staff", label: "Staff & wages", icon: HardHat },
-  { href: "/users", label: "Logins", icon: Users },
-  { href: "/activity", label: "Activity log", icon: History },
+  { href: "/orders", label: "nav.orders", icon: ClipboardList },
+  { href: "/customers", label: "nav.customers", icon: Contact },
+  { href: "/accounts", label: "nav.accounts", icon: BookOpenCheck },
+  { href: "/payroll", label: "nav.payroll", icon: Wallet },
+  { href: "/staff", label: "nav.staff", icon: HardHat },
+  { href: "/users", label: "nav.users", icon: Users },
+  { href: "/activity", label: "nav.activity", icon: History },
 ];
 
 function isActive(pathname, href) {
@@ -45,13 +48,14 @@ function currentSection(pathname, items) {
 
 export default function Shell({ user, appName, pendingCount, today, initialCollapsed = false, children }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
 
   // Remembered in a cookie (not localStorage) so the server renders the right width — no flicker.
   function toggleSidebar() {
     const next = !collapsed;
     setCollapsed(next);
-    document.cookie = `${SIDEBAR_COOKIE}=${next ? "collapsed" : "open"}; path=/; max-age=31536000; samesite=lax`;
+    setPrefCookie(SIDEBAR_COOKIE, next ? "collapsed" : "open");
   }
   const items = user.role === "admin" ? [...WORK, ...ADMIN] : WORK;
   const section = currentSection(pathname, items) ?? WORK[0];
@@ -62,7 +66,8 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
   useEffect(() => setOpen(false), [pathname]);
 
   // Every data table becomes stacked, labelled cards on phones: copy each column heading onto
-  // its cells as data-label (CSS shows it). Re-runs whenever page content changes.
+  // its cells as data-label (CSS shows it). Re-runs whenever page content changes, including
+  // a language switch, so the labels always match the current headings.
   useEffect(() => {
     const main = document.querySelector(".main");
     if (!main) return;
@@ -73,24 +78,24 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
         if (!table.classList.contains("table-cards")) table.classList.add("table-cards", "auto");
         table.querySelectorAll("tbody tr").forEach((tr) =>
           [...tr.children].forEach((td, i) => {
-            if (heads[i] && !td.dataset.label) td.dataset.label = heads[i];
+            if (heads[i] && td.dataset.label !== heads[i]) td.dataset.label = heads[i];
           }),
         );
       });
     };
     label();
     const observer = new MutationObserver(label);
-    observer.observe(main, { childList: true, subtree: true });
+    observer.observe(main, { childList: true, subtree: true, characterData: true });
     return () => observer.disconnect();
   }, []);
 
   const link = (item) => {
     const Icon = item.icon;
     return (
-      <Link key={item.href} href={item.href} title={collapsed ? item.label : undefined}
+      <Link key={item.href} href={item.href} title={collapsed ? t(item.label) : undefined}
         className={`side-link${isActive(pathname, item.href) ? " active" : ""}`}>
         <Icon size={18} />
-        <span className="side-label">{item.label}</span>
+        <span className="side-label">{t(item.label)}</span>
         {item.count === "pending" && pendingCount > 0 && <span className="count">{pendingCount}</span>}
       </Link>
     );
@@ -102,8 +107,9 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
       <header className="topbar">
         <Logo size={30} />
         {appName}
+        <PrefsToggle className="prefs-dark" />
         <span className="avatar avatar-sm" title={user.full_name}>{initial}</span>
-        <button className="icon-btn" onClick={() => setOpen(true)} aria-label="Open menu">
+        <button className="icon-btn" onClick={() => setOpen(true)} aria-label={t("shell.openMenu")}>
           <Menu size={22} />
         </button>
       </header>
@@ -115,15 +121,15 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
           <span className="side-label">{appName}</span>
         </Link>
         <button className="side-toggle" onClick={toggleSidebar}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+          aria-label={t(collapsed ? "shell.expand" : "shell.collapse")} title={t(collapsed ? "shell.expand" : "shell.collapse")}>
           {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
         </button>
         <nav className="side-nav">
-          {user.role === "admin" && <div className="side-group"><span className="side-label">Daily work</span></div>}
+          {user.role === "admin" && <div className="side-group"><span className="side-label">{t("shell.dailyWork")}</span></div>}
           {WORK.map(link)}
           {user.role === "admin" && (
             <>
-              <div className="side-group"><span className="side-label">Owner</span></div>
+              <div className="side-group"><span className="side-label">{t("shell.owner")}</span></div>
               {ADMIN.map(link)}
             </>
           )}
@@ -132,10 +138,10 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
           <span className="avatar">{initial}</span>
           <div className="who side-label">
             <strong>{user.full_name}</strong>
-            <span><RoleIcon size={12} /> {user.role === "admin" ? "Owner · Admin" : "Staff · Worker"}</span>
+            <span><RoleIcon size={12} /> {t(user.role === "admin" ? "shell.adminLong" : "shell.workerLong")}</span>
           </div>
           <form action={logout}>
-            <button className="icon-btn" aria-label="Sign out" title="Sign out">
+            <button className="icon-btn" aria-label={t("shell.signOut")} title={t("shell.signOut")}>
               <LogOut size={18} />
             </button>
           </form>
@@ -146,18 +152,19 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
         <header className="apphead">
           <div className="apphead-section">
             <SectionIcon size={17} />
-            <span>{section.label}</span>
+            <span>{t(section.label)}</span>
           </div>
           <div className="apphead-right">
+            <PrefsToggle />
             <span className="chip"><CalendarDays size={15} /> {today}</span>
             {pathname !== "/orders/new" && (
-              <Link href="/orders/new" className="btn btn-accent btn-sm"><PlusCircle size={15} /> New order</Link>
+              <Link href="/orders/new" className="btn btn-accent btn-sm"><PlusCircle size={15} /> {t("nav.newOrder")}</Link>
             )}
             <div className="apphead-user">
               <span className="avatar">{initial}</span>
               <div>
                 <strong>{user.full_name}</strong>
-                <span><RoleIcon size={12} /> {user.role === "admin" ? "Admin" : "Worker"}</span>
+                <span><RoleIcon size={12} /> {t(user.role === "admin" ? "shell.admin" : "shell.worker")}</span>
               </div>
             </div>
           </div>
@@ -168,11 +175,11 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
         </main>
       </div>
 
-      <nav className="tabbar" aria-label="Quick navigation">
+      <nav className="tabbar" aria-label={t("shell.quickNav")}>
         {WORK.map(({ href, short, icon: Icon, count }) => (
           <Link key={href} href={href} className={`tab${isActive(pathname, href) ? " active" : ""}`}>
             <Icon size={21} />
-            {short}
+            {t(short)}
             {count === "pending" && pendingCount > 0 && <span className="count">{pendingCount}</span>}
           </Link>
         ))}
