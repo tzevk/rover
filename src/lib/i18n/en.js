@@ -1,6 +1,7 @@
 // English strings. Keys ending in _one / _other are picked by t(key, { count }).
 // Every key here must also exist in mr.js (checked by `node scripts/check-i18n.mjs`).
 const en = {
+  "app.name": "Neeta",
   "meta.description": "Orders, deliveries, ledgers, expenses and attendance for the quarry.",
 
   // Shared words

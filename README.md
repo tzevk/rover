@@ -1,4 +1,4 @@
-# Rover Quarry
+# Neeta
 
 Orders, deliveries, customer ledgers, expenses and staff attendance for a quarry — with separate **Admin** (owner) and **Worker** (staff) access.
 

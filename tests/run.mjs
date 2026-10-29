@@ -294,9 +294,20 @@ async function main() {
     console.log("▸ Language & theme");
     const shot = (page, name) => process.env.SCREENSHOT_DIR && page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, `${name}.png`), fullPage: true });
     await admin.goto(`${BASE}/`);
+    check(await admin.isVisible(".side-brand >> text=Neeta"), "the app is called Neeta");
+    const phase = await admin.getAttribute(".sky", "data-phase");
+    check(["dawn", "day", "dusk", "night"].includes(phase), `background sky follows the time of day (now: ${phase})`);
     await admin.click('.apphead .pref-btn[lang="mr"]');
     await admin.waitForSelector("h1:has-text('आढावा')");
     check(await admin.evaluate(() => document.documentElement.lang) === "mr", "switching to Marathi translates the page and sets lang=mr");
+    check(await admin.isVisible(".side-brand >> text=नीता"), "the name is spelled नीता in Marathi");
+    if (process.env.SCREENSHOT_DIR) {
+      for (const p of ["dawn", "day", "dusk", "night"]) {
+        await admin.goto(`${BASE}/?sky=${p}`);
+        await admin.waitForTimeout(4500); // let the cross-fade finish
+        await shot(admin, `sky-app-light-${p}`);
+      }
+    }
     await admin.goto(`${BASE}/staff`);
     await admin.click('.inset button:has-text("जतन करा")');
     await admin.waitForSelector("text=जतन केले.");
@@ -313,6 +324,20 @@ async function main() {
     await admin.goto(`${BASE}/activity`);
     check(await admin.isVisible("text=वितरण पुन्हा उघडले"), "activity log entries are translated");
     await shot(admin, "mr-dark-activity");
+    if (process.env.SCREENSHOT_DIR) {
+      for (const p of ["dawn", "night"]) {
+        await admin.goto(`${BASE}/?sky=${p}`);
+        await admin.waitForTimeout(4500);
+        await shot(admin, `sky-app-dark-${p}`);
+      }
+      const guest = await newPage(await browser.newContext());
+      for (const p of ["dawn", "day", "dusk", "night"]) {
+        await guest.goto(`${BASE}/login?sky=${p}`);
+        await guest.waitForTimeout(4500);
+        await shot(guest, `sky-login-${p}`);
+      }
+      await admin.goto(`${BASE}/activity`);
+    }
     await admin.click('.apphead .pref-btn[lang="en"]');
     await admin.waitForSelector("h1:has-text('Activity log')");
     if ((await theme()) !== before) await admin.click(".apphead .pref-icon");

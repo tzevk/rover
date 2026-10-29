@@ -5,6 +5,7 @@
 //   attendance हजेरी · admin प्रशासक · password संकेतशब्द · date दिनांक · remark शेरा.
 // Numbers stay in international (Latin) digits, as on Indian official forms and invoices.
 const mr = {
+  "app.name": "नीता",
   "meta.description": "खाणीच्या मागण्या, वितरण, खातेवही, खर्च आणि हजेरी.",
 
   // सामायिक शब्द
@@ -157,14 +158,14 @@ const mr = {
   "newOrder.title": "नवीन मागणी नोंदवा",
   "newOrder.subtitle": "ग्राहक निवडा, परिमाण व दर भरा. एकूण रक्कम आपोआप काढली जाईल.",
   "newOrder.details": "मागणीचा तपशील",
-  "newOrder.allRequired": "तिन्ही माहिती आवश्यक आहे",
+  "newOrder.allRequired": "तिन्ही रकाने भरणे आवश्यक आहे",
   "newOrder.how": "मागणीची नोंदणी कशी करावी",
   "newOrder.step1": "ग्राहक निवडा.",
   "newOrder.step1Text": "नाव किंवा दूरध्वनी क्रमांक टाइप करा. नवीन ग्राहक असल्यास यादीतूनच जोडा.",
   "newOrder.step2": "परिमाण व दर भरा.",
   "newOrder.step2Text": "टाइप करताच एकूण रक्कम काढली जाते.",
   "newOrder.step3": "मागणी नोंदवा.",
-  "newOrder.step3Text": "वाहनाची रवानगी होईपर्यंत ही मागणी ‘प्रलंबित वितरण’ मध्ये दिसेल.",
+  "newOrder.step3Text": "वाहनाची रवानगी होईपर्यंत ही मागणी ‘प्रलंबित वितरण’मध्ये दिसेल.",
   "newOrder.customerName": "ग्राहकाचे नाव",
   "newOrder.orderedQty": "मागणी परिमाण",
   "newOrder.ratePerUnit": "दर (₹ प्रति एकक)",
@@ -202,7 +203,7 @@ const mr = {
   "deliver.deliveredQty": "वितरित परिमाण",
   "deliver.booking": "नोंदणी",
   "deliver.orderedQty": "मागणी परिमाण",
-  "deliver.bookedTotal": "नोंदणीवेळची एकूण रक्कम",
+  "deliver.bookedTotal": "नोंदणीच्या वेळची एकूण रक्कम",
   "deliver.cancelConfirm": "मागणी #{id} रद्द करायची? ही कृती परत घेता येणार नाही.",
   "deliver.cancelOrder": "ही मागणी रद्द करा",
   "deliver.mistake": "चुकून नोंद झाली?",

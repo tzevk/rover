@@ -1,4 +1,4 @@
-// Database operations for Rover Quarry.
+// Database operations for Neeta.
 //
 //   npm run db:migrate                 apply new migrations, fix app-login privileges, write .env.local
 //   npm run db:backup                  full backup → backups/<db>-<time>.sql.gz (keeps the newest 30)
@@ -176,7 +176,6 @@ async function migrate() {
       DB_PASSWORD: appPassword,
       DB_TZ: fileEnv.DB_TZ || "+05:30",
       SESSION_SECRET: fileEnv.SESSION_SECRET || secret(48),
-      NEXT_PUBLIC_APP_NAME: fileEnv.NEXT_PUBLIC_APP_NAME || "Rover Quarry",
     });
     log(`✓ Wrote ${path.relative(root, ENV_FILE)} (app login only — the owner password is not stored)`);
 
@@ -215,7 +214,7 @@ async function backup({ connection, database = cfg.database, quiet = false } = {
       "SELECT table_name AS t FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE' ORDER BY table_name",
       [database],
     );
-    write(`-- Rover Quarry backup of \`${database}\` at ${new Date().toISOString()}`);
+    write(`-- Neeta backup of \`${database}\` at ${new Date().toISOString()}`);
     write("SET FOREIGN_KEY_CHECKS = 0;");
     write("SET NAMES utf8mb4;");
     let rowCount = 0;

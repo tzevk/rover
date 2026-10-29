@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { Fraunces, Noto_Sans_Devanagari, Noto_Serif_Devanagari, Plus_Jakarta_Sans } from "next/font/google";
 import { LangProvider } from "@/components/I18n";
-import { APP_NAME } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { THEME_COOKIE } from "@/lib/ui-prefs";
 import "./globals.css";
@@ -15,7 +14,7 @@ const displayDeva = Noto_Serif_Devanagari({ subsets: ["devanagari"], variable: "
 export async function generateMetadata() {
   const { t } = await getI18n();
   return {
-    title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
+    title: { default: t("app.name"), template: `%s · ${t("app.name")}` },
     description: t("meta.description"),
   };
 }

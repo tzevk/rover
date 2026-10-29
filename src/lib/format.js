@@ -1,4 +1,3 @@
-export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Rover Quarry";
 export const TZ = "Asia/Kolkata";
 
 const inrFmt = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2 });

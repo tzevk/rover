@@ -1,23 +1,24 @@
 import Logo from "@/components/Logo";
 import PrefsToggle from "@/components/PrefsToggle";
-import { APP_NAME } from "@/lib/format";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
+import SkyScene from "@/components/SkyScene";
+import { skyAt } from "@/lib/sky";
 import LoginForm from "./LoginForm";
 
 export const generateMetadata = pageTitle("login.title");
 
 export default async function LoginPage() {
   const { t } = await getI18n();
-  // The last word of the name is set in gold italic, e.g. "Rover *Quarry*".
-  const words = APP_NAME.trim().split(/\s+/);
+  // The last word of the name is set in gold italic, e.g. "Neeta" → "*Neeta*".
+  const words = t("app.name").trim().split(/\s+/);
   const last = words.pop();
 
   return (
     <main className="auth">
       <PrefsToggle className="prefs-dark" />
       <div className="auth-scene" aria-hidden="true">
+        <SkyScene initial={skyAt()} variant="hero" />
         <div className="auth-rings" />
-        <div className="auth-glow" />
         <svg className="auth-strata" viewBox="0 0 1440 360" preserveAspectRatio="none">
           <path d="M0 150 L150 84 L300 132 L470 40 L640 120 L800 66 L980 130 L1150 72 L1300 118 L1440 86 V360 H0Z" fill="#1b3727" />
           <path d="M0 200 L180 146 L350 188 L540 112 L720 182 L900 134 L1080 180 L1260 126 L1440 168 V360 H0Z" fill="#224a35" />

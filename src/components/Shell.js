@@ -10,6 +10,7 @@ import {
 import Logo from "./Logo";
 import NavProgress from "./NavProgress";
 import PrefsToggle from "./PrefsToggle";
+import SkyScene from "./SkyScene";
 import { useI18n } from "./I18n";
 import { logout } from "@/app/actions/auth";
 import { setPrefCookie, SIDEBAR_COOKIE } from "@/lib/ui-prefs";
@@ -46,7 +47,7 @@ function currentSection(pathname, items) {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 
-export default function Shell({ user, appName, pendingCount, today, initialCollapsed = false, children }) {
+export default function Shell({ user, appName, pendingCount, today, initialCollapsed = false, sky, children }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -104,6 +105,7 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
   return (
     <div className="shell" data-open={open} data-collapsed={collapsed}>
       <NavProgress />
+      <SkyScene initial={sky} />
       <header className="topbar">
         <Logo size={30} />
         {appName}

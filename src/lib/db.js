@@ -32,7 +32,7 @@ function createPool() {
 }
 
 // Reuse one pool across hot reloads in dev.
-export const pool = (globalThis.__roverPool ??= createPool());
+export const pool = (globalThis.__neetaPool ??= createPool());
 
 const SLOW_MS = 300;
 
