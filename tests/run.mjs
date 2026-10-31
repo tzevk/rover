@@ -1368,9 +1368,9 @@ async function main() {
     const stillCtx = await browser.newContext({ reducedMotion: "reduce", viewport: { width: 1180, height: 720 }, extraHTTPHeaders: { "x-forwarded-for": "198.51.100.10" } });
     const still = await newPage(stillCtx);
     await still.goto(`${BASE}/welcome`);
-    await still.waitForSelector(".stop");
+    await still.waitForSelector(".step");
     check(await still.locator("canvas").count() === 0 && !(await still.locator(".exp[data-live]").count()), "with reduced motion on, nothing animates");
-    check(await still.locator(".stop:visible").count() === 9 && await still.locator(".record:visible").count() === 9, "…and every stop reads straight down the page");
+    check(await still.locator(".step:visible").count() === 8, "…and every stop reads straight down the page");
     await stillCtx.close();
     const savingCtx = await browser.newContext({ viewport: { width: 390, height: 800 }, extraHTTPHeaders: { "x-forwarded-for": "198.51.100.11" } });
     await savingCtx.addInitScript(() => Object.defineProperty(navigator, "connection", { value: { saveData: true } }));

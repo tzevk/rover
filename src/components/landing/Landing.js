@@ -1,4 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
+import { Building2, FileOutput, History, Landmark, Languages, ShieldCheck, Truck, Users, WifiOff } from "lucide-react";
 import Logo from "@/components/Logo";
 import ContactLinks from "@/components/ContactLinks";
 import SiteMenu from "./SiteMenu";
@@ -33,17 +35,10 @@ function structuredData(c) {
   };
 }
 
-const Tag = ({ c, s }) => <span className={`tag tag-${s}`}>{c.status[s]}</span>;
-
-function Panel({ data, sample }) {
-  return (
-    <aside className="panel" aria-label={sample}>
-      <strong>{data.head}</strong>
-      <dl>{data.rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
-      <small>{sample}</small>
-    </aside>
-  );
-}
+// Only what the journey at the top hasn't already shown.
+const ALSO_ICONS = [Users, Truck, FileOutput, Building2, WifiOff, Landmark];
+const WHY_ICONS = [History, ShieldCheck, Languages];
+const WHO_IMAGES = ["motor-shop", "drill", "workshop", "shelves", "till", "parcel"];
 
 export default function Landing({ lang }) {
   const c = CONTENT[lang];
@@ -71,84 +66,72 @@ export default function Landing({ lang }) {
         </header>
 
         <Experience descriptor={c.descriptor} headline={c.headline} sub={c.sub} cta={c.cta} journey={c.journey} sample={c.sample}>
-          {c.flow && (
-            <section id="platform" className="block day">
-              <p className="mono">{c.flow.kicker}</p>
-              <h2>{c.flow.title}</h2>
-              <p className="lead">{c.sub}</p>
-              <div className="stops">
-                {c.flow.stops.map((s, i) => (
-                  <article key={s.name} className="stop">
-                    <p className="mono"><b>{String(i + 1).padStart(2, "0")}</b><Tag c={c} s={s.status} /></p>
-                    <h3>{s.name}</h3>
-                    <p className="stop-text">{s.text}</p>
-                    <div className="record">
-                      <strong>{s.record.head}</strong>
-                      <dl>{s.record.rows.map(([a, b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>
-                      <small>{c.sample}</small>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          )}
-
           <div className="ground">
-            <p className="roadmap" id={c.flow ? undefined : "platform"}>{c.roadmap}</p>
             <section id="modules" className="block">
-              <Rise inView><h2>{c.modulesTitle}</h2></Rise>
-              <div className="modules">
-                {c.modules.map((m) => (
-                  <Rise inView key={m.name}>
-                    <article className={`module module-${m.status}`}>
-                      <div>
-                        <Tag c={c} s={m.status} />
+              <Rise inView className="head">
+                <h2>{c.modulesTitle}</h2>
+                <p className="lead">{c.roadmap}</p>
+              </Rise>
+              <div className="also">
+                {c.modules.filter((m) => m.also).map((m, i) => {
+                  const Icon = ALSO_ICONS[i];
+                  return (
+                    <Rise inView delay={i * 0.06} key={m.name}>
+                      <article className="also-card">
+                        <span><Icon size={21} strokeWidth={1.7} /></span>
                         <h3>{m.name}</h3>
                         <p>{m.line}</p>
-                        {m.points.length > 0 && <ul>{m.points.map((p) => <li key={p}>{p}</li>)}</ul>}
-                      </div>
-                      {m.panel && c.panels && <Panel data={c.panels[m.panel]} sample={c.sample} />}
-                    </article>
-                  </Rise>
-                ))}
+                      </article>
+                    </Rise>
+                  );
+                })}
               </div>
             </section>
 
             {c.intel && (
-              <section className="block">
-                <Rise inView><h2>{c.intel.title}</h2><p className="lead">{c.intel.text}</p></Rise>
-                <div className="intel">
-                  <div className="panel">
-                    <strong>{c.intel.nowHead} <Tag c={c} s="available" /></strong>
-                    <dl>{c.intel.now.map(([a, b, v]) => <div key={a}><dt>{a}<br /><em>{b}</em></dt><dd>{v}</dd></div>)}</dl>
-                    <small>{c.sample}</small>
-                  </div>
-                  <div className="panel">
-                    <strong>{c.intel.soonHead} <Tag c={c} s="available" /></strong>
-                    <ul>{c.intel.soon.map((s) => <li key={s}>{s}</li>)}</ul>
-                    {c.intel.later && <small>{c.intel.later}</small>}
-                  </div>
-                </div>
+              <section className="brief">
+                <Rise inView className="brief-copy"><h2>{c.intel.title}</h2><p>{c.intel.text}</p></Rise>
+                <Rise inView delay={0.12} className="brief-board">
+                  <dl>{c.intel.now.map(([a, b, v]) => <div key={a}><dt>{a}<em>{b}</em></dt><dd>{v}</dd></div>)}</dl>
+                  <ul>{c.intel.soon.map((s) => <li key={s}>{s}</li>)}</ul>
+                  <small>{c.sample}</small>
+                </Rise>
               </section>
             )}
 
             {c.who && (
               <section className="block">
-                <Rise inView><h2>{c.whoTitle}</h2><p className="lead">{c.whoNote}</p></Rise>
-                <dl className="who">{c.who.map(([a, b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>
+                <Rise inView className="head"><h2>{c.whoTitle}</h2><p className="lead">{c.whoNote}</p></Rise>
+                <div className="who">
+                  {c.who.map(([a, b], i) => (
+                    <Rise inView delay={(i % 3) * 0.06} key={a}>
+                      <figure>
+                        <Image src={`/shop/tiles/${WHO_IMAGES[i]}.webp`} alt="" fill sizes="(max-width: 800px) 100vw, 33vw" />
+                        <figcaption><h3>{a}</h3><p>{b}</p></figcaption>
+                      </figure>
+                    </Rise>
+                  ))}
+                </div>
               </section>
             )}
 
             {c.why && (
               <section className="block">
-                <Rise inView><h2>{c.whyTitle}</h2></Rise>
-                <dl className="why">{c.why.map(([a, s, b]) => <div key={a}><dt>{a} <Tag c={c} s={s} /></dt><dd>{b}</dd></div>)}</dl>
+                <Rise inView className="head"><h2>{c.whyTitle}</h2></Rise>
+                <dl className="why">
+                  {c.why.map(([a, , b], i) => {
+                    const Icon = WHY_ICONS[i];
+                    return <div key={a}><dt><Icon size={20} strokeWidth={1.7} />{a}</dt><dd>{b}</dd></div>;
+                  })}
+                </dl>
               </section>
             )}
 
-            <section id="demo" className="block demo">
-              <Rise inView><h2>{c.demo.title}</h2><p className="lead">{c.demo.text}</p></Rise>
-              <DemoForm demo={c.demo} lang={lang} />
+            <section id="demo" className="demo">
+              <div className="demo-in">
+                <Rise inView className="demo-copy"><h2>{c.demo.title}</h2><p>{c.demo.text}</p></Rise>
+                <DemoForm demo={c.demo} lang={lang} />
+              </div>
             </section>
 
             <footer className="lp-foot">

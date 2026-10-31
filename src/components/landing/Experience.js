@@ -91,6 +91,7 @@ export default function Experience({ descriptor, headline, sub, cta, journey, sa
   return (
     <div ref={root} className="exp">
       <section className="journey-run" aria-label={journey.kicker}>
+        <span id="platform" className="journey-start" />
         <div className="journey-pin" ref={pin}>
           <div className="stage" aria-hidden="true">
             {stage && <Scene live={live} mobile={stage.mobile} active={active} />}
