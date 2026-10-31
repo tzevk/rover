@@ -177,116 +177,54 @@
   .tag { animation: none !important; }
 }
 
-/* The shop. A closed shutter fills the screen; a printed notice is pasted on it and goes up with it. */
-.shop { position: relative; height: 100svh; min-height: 560px; overflow: hidden; background: #bcd9ca url("/shutter.webp") 50% 50% / cover no-repeat; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-.stage { position: absolute; inset: 0; opacity: 0; transition: opacity 0.7s; }
+/* One product on a sticky stage, one record beside it. */
+.journey-run { position: relative; height: 620svh; }
+.journey-pin { position: sticky; top: 0; height: 100svh; min-height: 560px; overflow: hidden; background: var(--page); }
+.stage { position: absolute; inset: 0; opacity: 0; transition: opacity 0.9s; cursor: grab; touch-action: pan-y; }
+.stage:active { cursor: grabbing; }
 .stage canvas { display: block; }
 .exp[data-painted] .stage { opacity: 1; }
-html.in-story { overflow: hidden; }
-html.in-story .lp-nav { transform: translateY(-110%); }
-.lp-nav { transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
 
-.notice { --rise: 0px; position: absolute; z-index: 3; left: 50%; bottom: clamp(70px, 11.5vh, 116px); width: min(600px, calc(100% - 28px)); padding: 20px 26px 16px; color: var(--ink); background: #fffdf6 url("/paper.webp"); box-shadow: 0 1px 1px rgb(40 50 40 / 0.2), 0 22px 36px -22px rgb(20 40 40 / 0.55); transform: translate(-50%, var(--rise)) rotate(-0.5deg); will-change: transform; user-select: text; -webkit-user-select: text; }
-.notice::before, .notice::after { content: ""; position: absolute; top: -9px; width: 74px; height: 21px; background: rgb(214 190 140 / 0.72); box-shadow: 0 1px 1px rgb(60 50 30 / 0.12); }
-.notice::before { left: -14px; transform: rotate(-33deg); }
-.notice::after { right: -14px; transform: rotate(31deg); }
-.notice h1 { margin-top: 7px; font-size: clamp(29px, min(3.1vw, 5.6vh), 44px); line-height: 1.06; }
-.notice h2 { margin-top: 8px; font-size: clamp(38px, 4.4vw, 62px); line-height: 1.04; }
-.lp:lang(mr) .notice h1 { font-size: clamp(26px, min(2.6vw, 4.8vh), 36px); line-height: 1.24; }
-.notice-intro { margin: 7px 0 0; color: var(--soft); font-size: 16px; line-height: 1.42; }
-.notice-intro em { font-style: normal; }
-.notice-play { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 11px 12px; margin-top: 12px; align-items: end; }
-.field { display: grid; gap: 3px; min-width: 0; font-size: 12.5px; color: var(--soft); }
-.field input { width: 100%; min-height: 46px; padding: 8px 11px; border: 1px solid rgb(31 29 23 / 0.3); border-radius: 2px; background: #fff; color: var(--ink); font: inherit; font-size: 17px; }
-.field input:focus { outline: 0; border-color: var(--amber); box-shadow: 0 0 0 2px rgb(232 148 12 / 0.28); }
-.notice .act { min-height: 46px; padding: 0 20px; border: 0; cursor: pointer; font-family: inherit; }
-.notice .act:disabled { opacity: 0.6; cursor: progress; }
-.trades { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 0; padding: 0; border: 0; font-size: 13.5px; }
-.trades legend { float: left; margin-right: 8px; padding: 0; color: var(--soft); font-size: 12.5px; }
-.trades label { padding: 3px 9px; border: 1px solid rgb(31 29 23 / 0.2); border-radius: 999px; cursor: pointer; transition: background-color 0.2s, border-color 0.2s; }
-.trades label.on { background: var(--ink); border-color: var(--ink); color: var(--page); }
-.trades input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.trades label:focus-within { outline: 2px solid var(--amber); outline-offset: 2px; }
-.notice-skip { display: inline-block; margin-top: 8px; color: var(--soft); font-size: 13px; text-decoration: underline !important; text-underline-offset: 3px; }
+.hero { position: absolute; z-index: 2; left: var(--pad); bottom: clamp(36px, 9vh, 90px); display: grid; gap: clamp(12px, 2vh, 20px); width: min(46vw, 700px); opacity: var(--hero, 1); transform: translateY(calc((1 - var(--hero, 1)) * -24px)); }
+.hero h1 { font-size: clamp(44px, min(5.8vw, 11.5vh), 98px); line-height: 1.03; }
+.lp:lang(mr) .hero h1 { font-size: clamp(36px, min(4.6vw, 9vh), 74px); line-height: 1.24; }
+.headline-mask { overflow: hidden; padding-bottom: 0.1em; }
+.headline-mask > span { display: block; }
+.hero-foot { display: grid; gap: 16px; }
+.hero-foot p { margin: 0; max-width: 31em; opacity: 0.84; }
 
-/* The bottom of the shutter is where you take hold of it */
-.pull { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 84px; display: none; align-items: center; justify-content: center; cursor: grab; touch-action: none; color: #17302f; font-size: 13.5px; font-weight: 600; }
-.pull:active { cursor: grabbing; }
-.pull span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: rgb(255 253 246 / 0.82); animation: nudge 2.4s ease-in-out infinite; }
-@keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-.exp[data-live][data-phase="street"] .pull[data-for="up"] { display: flex; }
-.pull-down { top: 0; bottom: auto; height: 100%; }
-.exp[data-phase="shut"] .pull-down { display: flex; align-items: flex-start; left: 0; right: 0; top: 0; bottom: 0; height: auto; padding: 24vh 0 0; }
+.step { position: absolute; z-index: 2; left: var(--pad); bottom: clamp(36px, 9vh, 90px); width: min(32vw, 500px); opacity: 0; visibility: hidden; transform: translateY(18px); transition: opacity 0.35s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s; }
+.step[data-state="now"] { opacity: 1; visibility: visible; transform: none; }
+.step b { font-family: var(--mono-f); font-size: 12px; font-weight: 400; color: var(--amber-ink); }
+.step h2 { margin-top: 4px; font-size: clamp(36px, 4.2vw, 66px); line-height: 1.05; }
+.step p { margin: 8px 0 0; font-size: 18px; color: var(--ink); opacity: 0.86; }
+.lp:lang(mr) .step h2 { line-height: 1.26; }
 
-/* On a wide screen the notice is pasted on the wall beside the shop, so the shutter stays clear */
-@media (min-width: 1100px) and (min-aspect-ratio: 3/2) {
-  .notice { left: clamp(24px, 3.6vw, 72px); bottom: auto; top: 50%; width: min(31vw, 470px); padding: 24px 26px 16px; transform: translate(0, -44%) rotate(-0.6deg); opacity: var(--shown, 1); }
-  .notice h1 { font-size: clamp(36px, min(3.5vw, 6.2vh), 56px); }
-  .lp:lang(mr) .notice h1 { font-size: clamp(30px, min(2.8vw, 5vh), 44px); }
-  .notice-play { grid-template-columns: minmax(0, 1fr); }
-  .notice .act { width: 100%; }
-  .trades { grid-row: auto; }
-  .pull { left: 38%; right: 0; top: 18%; height: auto; align-items: flex-end; padding-bottom: clamp(16px, 3vh, 30px); }
-}
+/* The software: the same record from the first step to the last */
+.app { position: absolute; z-index: 3; right: clamp(16px, 3.4vw, 60px); top: 50%; width: min(29vw, 410px); padding: 16px 18px 12px; background: var(--sheet); border: 1px solid rgb(31 29 23 / 0.1); border-radius: 10px; box-shadow: 0 2px 4px rgb(60 50 30 / 0.06), 0 34px 60px -28px rgb(60 50 30 / 0.38); transform: translateY(-46%); }
+.app header { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--soft); }
+.app header span { display: inline-flex; align-items: center; gap: 7px; }
+.app > strong { display: block; margin-top: 9px; font-family: var(--serif); font-weight: 400; font-size: 25px; line-height: 1.12; }
+.app > em { display: block; margin-top: 2px; font-style: normal; font-size: 14px; color: var(--soft); }
+.app ol { margin: 11px 0 0; padding: 0; list-style: none; }
+.app button { position: relative; display: grid; grid-template-columns: 17px minmax(0, 1fr); gap: 0 9px; width: 100%; padding: 7px 4px 7px 2px; border: 0; border-top: 1px solid var(--line); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: opacity 0.3s, background-color 0.3s; }
+.app button i { grid-row: span 2; width: 13px; height: 13px; margin-top: 3px; border-radius: 50%; border: 1.5px solid rgb(31 29 23 / 0.28); transition: background-color 0.3s, border-color 0.3s; }
+.app button span { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.app button small { font-family: var(--mono-f); font-size: 11.5px; color: var(--soft); max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.4s, opacity 0.4s; }
+.lp:lang(mr) .app button small { font-family: var(--f-marathi); font-size: 13.5px; }
+.app button[data-state="next"] { opacity: 0.46; }
+.app button[data-state="past"] i { background: #2c7a43; border-color: #2c7a43; }
+.app button[data-state="now"] i { background: var(--amber); border-color: var(--amber); box-shadow: 0 0 0 4px rgb(232 148 12 / 0.2); }
+.app button[data-state="past"] small, .app button[data-state="now"] small { max-height: 2.6em; opacity: 1; }
+.app button[data-state="now"] { background: rgb(232 148 12 / 0.09); }
+.app footer { padding-top: 7px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--soft); text-align: right; }
+@media (hover: hover) { .app button:hover { background: rgb(232 148 12 / 0.14); opacity: 1; } }
 
-.whiteout { position: absolute; inset: 0; z-index: 5; background: #fff7e6; opacity: 0; pointer-events: none; }
-
-/* During the day */
-.story-bar { position: absolute; z-index: 6; top: 12px; right: 12px; display: none; align-items: center; gap: 4px; }
-.story-bar button { min-height: 36px; padding: 0 11px; display: inline-flex; align-items: center; border: 0; border-radius: 2px; background: rgb(255 253 246 / 0.84); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
-.caption { position: absolute; z-index: 4; left: var(--pad); bottom: clamp(16px, 4vh, 38px); display: none; width: min(27em, calc(100% - 24px)); padding: 13px 20px 15px; background: #fffdf6 url("/paper.webp"); box-shadow: 0 1px 1px rgb(60 50 30 / 0.2), 0 20px 34px -20px rgb(50 40 20 / 0.5); user-select: text; -webkit-user-select: text; }
-.caption-time { margin: 0; font-family: var(--mono-f); font-size: 12px; letter-spacing: 0.04em; color: var(--amber-ink); }
-.lp:lang(mr) .caption-time { font-family: var(--f-marathi); font-size: 15.5px; letter-spacing: 0; }
-.caption h2 { margin-top: 3px; font-size: clamp(22px, 2.2vw, 29px); line-height: 1.14; }
-.lp:lang(mr) .caption h2 { line-height: 1.3; }
-.caption p:not(.caption-time) { margin: 5px 0 0; color: var(--soft); font-size: 15.5px; line-height: 1.4; }
-.caption-act { margin-top: 8px; padding: 0; border: 0; background: none; color: var(--amber-ink); font: inherit; font-size: 14.5px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.caption .act { margin-top: 11px; min-height: 46px; border: 0; cursor: pointer; font-family: inherit; white-space: normal; }
-.caption .count { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 6px; border-top: 1px solid var(--line); }
-.caption .count b { font-family: var(--mono-f); font-size: 21px; font-weight: 400; color: var(--ink); }
-.exp[data-phase="wait"] .caption, .exp[data-phase="done"] .caption, .exp[data-phase="travel"] .caption, .exp[data-phase="short"] .caption,
-.exp[data-phase="rewind"] .caption, .exp[data-phase="found"] .caption, .exp[data-phase="shut"] .caption { display: block; }
-.exp:not([data-phase="street"]):not([data-phase="entering"]):not([data-phase="closed"]) .story-bar { display: flex; }
-
-/* The sun is what you drag to turn the day back */
-.sun-track { position: absolute; z-index: 4; left: 8%; right: 8%; top: 56px; height: 54px; display: none; pointer-events: none; }
-.sun-track::before { content: ""; position: absolute; inset: 0; border-top: 2px dashed rgb(255 247 226 / 0.86); border-radius: 50% 50% 0 0 / 100% 100% 0 0; }
-.sun-track i { position: absolute; left: calc(var(--at, 1) * 100%); top: calc(54px * (1 - sin(var(--at, 1) * 3.14159)) - 15px); width: 30px; height: 30px; margin-left: -15px; border-radius: 50%; background: radial-gradient(circle at 42% 40%, #fff6d8, #ffc246 62%, #f08a1a); box-shadow: 0 0 0 7px rgb(255 203 92 / 0.28), 0 0 34px 12px rgb(255 190 80 / 0.6); }
-.exp[data-phase="rewind"] .sun-track, .exp[data-phase="found"] .sun-track { display: block; }
-.exp[data-phase="rewind"] .shop { cursor: ew-resize; touch-action: none; }
-
-/* The same day in R.K.: entries from everyone, newest first */
-.daybook { position: absolute; z-index: 4; top: 118px; right: var(--pad); display: none; width: min(25em, calc(100% - 24px)); padding: 15px 18px; overflow: hidden; background: var(--sheet); border-top: 3px solid var(--amber); box-shadow: 0 22px 44px -22px rgb(50 40 20 / 0.55); user-select: text; -webkit-user-select: text; }
-.daybook > strong { font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.15; }
-.daybook ol { margin: 8px 0 0; padding: 0; list-style: none; font-size: 13.5px; line-height: 1.28; }
-.daybook li { display: grid; grid-template-columns: 5em minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 5px 4px; border-top: 1px solid var(--line); transition: opacity 0.3s, background-color 0.4s; }
-.daybook li[data-on="0"] { opacity: 0; }
-.daybook time { font-family: var(--mono-f); font-size: 10.5px; color: var(--soft); }
-.daybook li b { font-weight: 600; }
-.daybook em { font-family: var(--mono-f); font-size: 11.5px; font-style: normal; white-space: nowrap; }
-.lp:lang(mr) .daybook time, .lp:lang(mr) .daybook em { font-family: var(--f-marathi); font-size: 13.5px; }
-.exp[data-phase="found"] .daybook li[data-key] { background: rgb(232 148 12 / 0.24); box-shadow: inset 3px 0 var(--amber); }
-.daybook dl, .daybook-stamp { display: none; }
-.exp[data-phase="rewind"] .daybook, .exp[data-phase="found"] .daybook { display: block; }
-.exp[data-phase="found"] .daybook dl { display: block; margin: 8px 0 0; font-size: 14px; }
-.daybook dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 3px 4px; }
-.daybook dl > div:last-child { border-top: 2px solid var(--ink); font-weight: 600; }
-.daybook dd { margin: 0; font-family: var(--mono-f); font-size: 12.5px; }
-.exp[data-phase="found"] .daybook-stamp { position: absolute; left: 42%; bottom: 10px; display: block; margin: 0; padding: 3px 12px; border: 3px solid #5b3aa6; border-radius: 3px; color: #5b3aa6; font-family: var(--f-sign), serif; font-size: 25px; transform: rotate(-9deg); -webkit-mask: url("/ink.webp") 0 0 / 180px; mask: url("/ink.webp") 0 0 / 180px; animation: land 0.34s 0.7s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
-@keyframes land { from { opacity: 0; transform: rotate(-9deg) scale(1.7); } to { opacity: 1; transform: rotate(-9deg) scale(1); } }
-
-.exp[data-phase="closed"] .notice:not(.notice-closed) { display: none; }
-.exp[data-phase="travel"] .caption { width: auto; padding: 9px 16px; }
-.notice-closed { --rise: 0px; text-align: left; animation: paste 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
-@keyframes paste { from { opacity: 0; margin-bottom: -16px; } to { opacity: 1; margin-bottom: 0; } }
-.notice-closed > p:not(.mono) { margin: 6px 0 0; color: var(--soft); }
-.notice-closed .acts { margin-top: 12px; }
-.notice-closed .act { border: 0; cursor: pointer; font-family: inherit; }
-.notice-closed .act-line { border: 1px solid rgb(31 29 23 / 0.28); }
-
-/* No shop to play: the picture of it, the headline, and everything readable below */
-.exp[data-still] .notice-play, .exp[data-still] .notice-intro { display: none; }
-.exp[data-still] .shop { min-height: 460px; }
+/* No 3D: the picture, the headline and the finished record, then everything reads on below */
+.exp[data-still] .journey-run { height: auto; }
+.exp[data-still] .journey-pin { position: relative; background: var(--page) url("/line.webp") 50% 50% / cover no-repeat; }
+.exp[data-still] .step { display: none; }
+.exp[data-still] .app button small { max-height: 2.6em; opacity: 1; }
 
 /* The day, as a page */
 .day h2 { margin-top: 8px; }
@@ -304,26 +242,17 @@ html.in-story .lp-nav { transform: translateY(-110%); }
 .lp:lang(mr) .record dd { font-family: var(--f-marathi); font-size: 15px; }
 .record small { color: var(--soft); font-size: 11.5px; text-align: right; }
 
-@media (max-width: 800px) {
-  .notice { bottom: 76px; padding: 13px 15px 8px; }
-  .notice .mono { font-size: 9.5px; letter-spacing: 0.04em; white-space: nowrap; }
-  .notice h1 { margin-top: 5px; font-size: clamp(25px, 7vw, 34px); }
-  .notice-intro { margin-top: 4px; font-size: 14.5px; }
-  .notice-play { grid-template-columns: minmax(0, 1fr); gap: 7px; margin-top: 7px; }
-  .notice .act { width: 100%; }
-  .field span { display: none; }
-  .trades { grid-row: auto; flex-wrap: nowrap; overflow-x: auto; margin: 0 -15px; padding: 0 15px; font-size: 13px; scrollbar-width: none; }
-  .trades legend { display: none; }
-  .trades label { flex: none; }
-  .notice-skip { margin-top: 5px; }
-  .pull { height: 76px; }
-  .caption { left: 12px; right: 12px; width: auto; bottom: 12px; padding: 11px 15px 13px; }
-  .sun-track { top: 54px; left: 6%; right: 6%; }
-  .daybook { left: 12px; right: 12px; top: 112px; width: auto; max-height: calc(100svh - 300px); overflow: auto; padding: 9px 12px; }
-  .daybook li { padding: 3px 2px; }
-  .exp[data-phase="found"] .daybook-stamp { font-size: 20px; bottom: 6px; }
-  .exp[data-phase="found"] .daybook dl { margin-top: 4px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pull span { animation: none; }
+@media (max-width: 900px) {
+  .journey-run { height: 560svh; }
+  .hero { left: 20px; right: 20px; width: auto; top: 76px; bottom: auto; }
+  .hero h1 { font-size: clamp(36px, 10vw, 52px); }
+  .hero-foot p { display: none; }
+  .step { left: 20px; right: 20px; top: 74px; bottom: auto; width: auto; }
+  .step h2 { font-size: 32px; }
+  .step p { margin-top: 3px; font-size: 15.5px; }
+  .app { left: 12px; right: 12px; top: auto; bottom: 12px; width: auto; padding: 10px 12px 6px; transform: none; }
+  .app > strong, .app > em, .app footer { display: none; }
+  .app ol { margin-top: 5px; }
+  .app li:has(button[data-state="next"]), .app li:has(button[data-state="past"]) { display: none; }
+  .app li:has(button[data-state="past"]):has(+ li button[data-state="now"]) { display: block; }
 }

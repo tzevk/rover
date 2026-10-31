@@ -70,7 +70,7 @@ export default function Landing({ lang }) {
           </div>
         </header>
 
-        <Experience lang={lang} descriptor={c.descriptor} headline={c.headline}>
+        <Experience descriptor={c.descriptor} headline={c.headline} sub={c.sub} cta={c.cta} journey={c.journey} sample={c.sample}>
           {c.flow && (
             <section id="platform" className="block day">
               <p className="mono">{c.flow.kicker}</p>
