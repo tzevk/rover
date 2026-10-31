@@ -88,13 +88,13 @@ export default async function OrdersPage({ searchParams }) {
                     <td><Link className="cell-link" href={`/customers/${o.cid}`}>{o.name}</Link></td>
                     <td><span className={`badge badge-${o.status}`}>{t(`status.${o.status}`)}</span></td>
                     <td className="num">{qty(o.ordered_qty)}</td>
-                    <td className="num">{o.delivered_qty == null ? "—" : qty(o.delivered_qty)}</td>
+                    <td className="num">{o.delivered_qty == null ? "-" : qty(o.delivered_qty)}</td>
                     <td className="num">{inr(o.rate)}</td>
                     <td className="num">{inr(o.total_amount)}</td>
-                    <td className="num">{o.paid_amount == null ? "—" : inr(o.paid_amount)}</td>
-                    <td className={`num ${o.balance_amount > 0 ? "due" : ""}`}>{o.balance_amount == null ? "—" : inr(o.balance_amount)}</td>
-                    <td className="nowrap">{o.vehicle_number || "—"}</td>
-                    <td className="nowrap">{o.arrival_time ? `${fmtTime(o.arrival_time)} – ${fmtTime(o.dispatch_time)}` : "—"}</td>
+                    <td className="num">{o.paid_amount == null ? "-" : inr(o.paid_amount)}</td>
+                    <td className={`num ${o.balance_amount > 0 ? "due" : ""}`}>{o.balance_amount == null ? "-" : inr(o.balance_amount)}</td>
+                    <td className="nowrap">{o.vehicle_number || "-"}</td>
+                    <td className="nowrap">{o.arrival_time ? `${fmtTime(o.arrival_time)} – ${fmtTime(o.dispatch_time)}` : "-"}</td>
                   </tr>
                 ))}
               </tbody>

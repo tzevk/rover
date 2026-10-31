@@ -97,7 +97,7 @@ export default async function SitesPage({ searchParams }) {
                   <td className="num">{inr(r.credit)}</td>
                   <td className="num">{inr(r.spent)}</td>
                   <td className={`num${r.net < 0 ? " due" : ""}`}>{inr(r.net)}</td>
-                  <td className={`num${r.cash?.difference ? " due" : ""}`}>{r.cash ? inr(r.cash.difference) : "—"}</td>
+                  <td className={`num${r.cash?.difference ? " due" : ""}`}>{r.cash ? inr(r.cash.difference) : "-"}</td>
                 </tr>
               ))}
             </tbody>

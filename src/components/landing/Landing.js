@@ -29,7 +29,7 @@ function structuredData(c) {
     "@context": "https://schema.org",
     "@graph": [
       { "@type": "Organization", name: SITE.name, url: SITE.url, logo: `${SITE.url}/icon.svg`, ...(SITE.email && { email: SITE.email }), ...(SITE.phone && { telephone: `+${SITE.phone}` }) },
-      { "@type": "SoftwareApplication", name: `${SITE.name} Quarry Operations Management`, url: SITE.url, applicationCategory: "BusinessApplication", operatingSystem: "Web", description: c.description, inLanguage: ["en", "mr"], featureList: c.modules.filter((m) => m.status === "available").map((m) => m.name) },
+      { "@type": "SoftwareApplication", name: `${SITE.name} Operations Software`, url: SITE.url, applicationCategory: "BusinessApplication", operatingSystem: "Web", description: c.description, inLanguage: ["en", "mr"], featureList: c.modules.filter((m) => m.status === "available").map((m) => m.name) },
     ],
   };
 }
@@ -45,6 +45,8 @@ function Panel({ data, sample }) {
     </aside>
   );
 }
+
+const EMPTY = [];
 
 export default function Landing({ lang }) {
   const c = CONTENT[lang];
@@ -71,13 +73,16 @@ export default function Landing({ lang }) {
           </div>
         </header>
 
-        <Experience>
+        <Experience stops={c.flow ? c.flow.stops.map((s) => [s.name, ...s.entry]) : EMPTY} sample={c.sample ?? ""}>
           <div data-reel>
             <section className="hero">
               <Rise delay={0.1}><p className="mono">{c.descriptor}</p></Rise>
               <Headline text={c.headline} />
               <Rise delay={0.8} className="hero-foot">
-                <p>{c.sub}</p>
+                <div>
+                  <p>{c.sub}</p>
+                  {c.scene?.hint && <p className="fan-hint">{c.scene.hint}</p>}
+                </div>
                 <div className="acts">
                   <Action href="#platform">{c.cta.primary} <ArrowRight size={17} /></Action>
                   <Action href="#demo" line>{c.cta.secondary}</Action>
@@ -121,7 +126,7 @@ export default function Landing({ lang }) {
                       <div className="rail-now"><span data-rail-count>1 / {c.flow.stops.length}</span> <span data-rail-name>{c.flow.stops[0].name}</span></div>
                       <div className="rail-track"><i /></div>
                       <ol>
-                        {c.flow.stops.map((s, i) => <li key={s.name}><button type="button" data-step={i}><span>{s.name}</span></button></li>)}
+                        {c.flow.stops.map((s, i) => <li key={s.name}><button type="button" data-step={i}><span>{s.name}</span><em>{s.entry.join(": ")}</em></button></li>)}
                       </ol>
                     </nav>
                     <svg className="leader" aria-hidden="true"><line /><circle r="4.5" /></svg>
@@ -142,6 +147,7 @@ export default function Landing({ lang }) {
           </div>
 
           <div className="ground">
+            <div className="thread" data-thread aria-hidden="true"><i /></div>
             <p className="roadmap" id={c.flow ? undefined : "platform"}>{c.roadmap}</p>
             <section id="modules" className="block">
               <Rise inView><h2>{c.modulesTitle}</h2></Rise>

@@ -6,7 +6,7 @@ export default function MaterialFields({ t, m }) {
       <div className="fields">
         <label className="field"><span>{t("common.nameRequired")}</span><input className="input" name="name" required maxLength={80} defaultValue={m?.name} placeholder={t("stock.namePlaceholder")} /></label>
         <label className="field"><span>{t("stock.unit")}</span>
-          <select className="select" name="unit" defaultValue={m?.unit ?? "tonne"}>
+          <select className="select" name="unit" defaultValue={m?.unit ?? "piece"}>
             {UNITS.map((u) => <option key={u} value={u}>{t(`unit.${u}`)}</option>)}
           </select>
         </label>

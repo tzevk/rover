@@ -67,7 +67,7 @@ export function invoiceNumber(prefix, fy, n) {
 export const cleanPrefix = (v) => String(v ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
 
 // Unit codes used on GST returns and e-way bills. Brass and cft have none of their own.
-export const UQC = { tonne: "MTS", cum: "CBM", brass: "OTH", cft: "OTH" };
+export const UQC = { tonne: "MTS", cum: "CBM", brass: "OTH", cft: "OTH", piece: "PCS", kg: "KGS", litre: "LTR", metre: "MTR", box: "BOX", set: "SET", hour: "OTH" };
 
 export const EWB_INTER_STATE_LIMIT = 50000;
 

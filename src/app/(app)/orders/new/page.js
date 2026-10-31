@@ -13,7 +13,7 @@ export default async function NewOrderPage() {
   const user = await requireUser();
   const cid = user.company_id;
   const { t } = await getI18n();
-  // Workers see names and phones only — never balances.
+  // Workers see names and phones only, never balances.
   const customers = await cached(`customer-list:${cid}`, { tags: [TAGS.customers], ttl: 300 }, () =>
     query(`SELECT id, name, phone FROM customers WHERE company_id = ${cid} ORDER BY name`),
   );

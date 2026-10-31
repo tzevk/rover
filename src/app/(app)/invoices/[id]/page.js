@@ -74,7 +74,7 @@ export default async function InvoicePage({ params }) {
           </div>
           <div>
             <h2>Dispatch</h2>
-            <p>Vehicle {inv.vehicle_number || "—"}</p>
+            <p>Vehicle {inv.vehicle_number || "-"}</p>
             {inv.pass_no && <p>Royalty pass {inv.pass_no}</p>}
             {inv.ewb_no && <p>E-way bill {inv.ewb_no}{inv.ewb_date ? `, ${fmtDate(inv.ewb_date)}` : ""}</p>}
           </div>

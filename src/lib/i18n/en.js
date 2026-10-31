@@ -183,7 +183,7 @@ const en = {
   "billing.price": "{amount} for {days} days.",
   "billing.pay": "Pay now",
   "billing.unavailable": "Online payment isn't available yet. Please contact us to continue.",
-  "meta.description": "Orders, deliveries, ledgers, expenses and attendance for quarry businesses.",
+  "meta.description": "Orders, stock, staff, deliveries, invoices and cash for small businesses.",
 
   // Shared words
   "common.save": "Save",
@@ -292,7 +292,7 @@ const en = {
   "greeting.evening": "Good evening",
 
   // Home
-  "home.workerTitle": "Your day at the quarry",
+  "home.workerTitle": "Your day at work",
   "home.workerSubtitle": "Everything you need for today, one tap away.",
   "home.youBooked": "You booked today",
   "home.ordersUnit_one": "order",
@@ -301,7 +301,7 @@ const en = {
   "home.loadsUnit_one": "load",
   "home.loadsUnit_other": "loads",
   "home.waiting": "Waiting to deliver",
-  "home.acrossQuarry": "across the quarry",
+  "home.acrossQuarry": "across the business",
   "home.tileBook": "Book new order",
   "home.tileBookText": "Customer, quantity and rate.",
   "home.tileDeliverText": "Vehicle, quantity and payment.",
@@ -310,7 +310,7 @@ const en = {
   "home.tileAttendance": "Today's attendance",
   "home.tileAttendanceText": "Present, absent or half-day.",
   "home.dashboard": "Dashboard",
-  "home.dashboardSubtitle": "Here's how the quarry is doing today.",
+  "home.dashboardSubtitle": "Here's how the business is doing today.",
   "home.totalOutstanding": "Total outstanding",
   "home.acrossCustomers": "across all customers",
   "home.todaysSales": "Today's sales",
@@ -399,7 +399,7 @@ const en = {
   "deliver.complete": "Complete delivery",
 
   // Expenses
-  "expenses.subtitle": "Daily quarry running costs.",
+  "expenses.subtitle": "Daily running costs.",
   "expenses.add": "Add an expense",
   "expenses.addSubtitle": "Fuel, maintenance, transport, food/tea or other",
   "expenses.choose": "Choose…",
@@ -604,9 +604,9 @@ const en = {
   "login.signingIn": "Signing in…",
 
   // Server action messages
-  "action.repeat": "Already saved — that was a repeat of the same submission.",
+  "action.repeat": "Already saved. That was a repeat of the same submission.",
   "action.constraint": "Those numbers don't add up, so nothing was saved. Please check and try again.",
-  "action.offline": "We couldn't save that right now. Nothing was changed — please try again in a moment.",
+  "action.offline": "We couldn't save that right now. Nothing was changed. Please try again in a moment.",
   "action.failed": "Something went wrong and nothing was saved. Please try again.",
   "action.markOne": "Mark at least one person.",
   "action.attendanceSaved_one": "Attendance saved for {count} person on {date}.",
@@ -627,7 +627,7 @@ const en = {
   "action.qtyPositive": "Quantity must be more than 0.",
   "action.ratePositive": "Rate must be more than 0.",
   "action.customerGone": "That customer no longer exists.",
-  "action.orderBooked": "Order #{id} booked for {name} — {total}",
+  "action.orderBooked": "Order #{id} booked for {name}: {total}",
   "action.vehicle": "Enter the vehicle number.",
   "action.times": "Enter both vehicle arrival and dispatch time.",
   "action.dispatchBeforeArrival": "Dispatch time can't be before arrival time.",
@@ -643,7 +643,7 @@ const en = {
   "action.passwordLength": "Password must be at least 8 characters.",
   "action.usernameTaken": "Username “{username}” is already taken.",
   "action.loginCreated": "Login created for {name} ({username}).",
-  "action.passwordUpdated": "Password updated — they've been signed out of other devices.",
+  "action.passwordUpdated": "Password updated. They've been signed out of other devices.",
 
   // Finance, sites and the offline gate
   "nav.cash": "Daily cash",
@@ -858,7 +858,7 @@ const en = {
   "stock.gstRule": "The GST rate must be between 0 and 40.",
   "stock.royalty": "Royalty per unit (₹)",
   "stock.royaltyHint": "Leave empty if none. Check the current government rate.",
-  "tally.subtitle": "Send sales, receipts and expenses to TallyPrime as import files.",
+  "tally.subtitle": "Send sales, receipts and expenses to TallyPrime. Customers go across with their GSTIN and State, and bills match their payments.",
   "tally.new": "New for Tally",
   "tally.sales": "Sales",
   "tally.receipts": "Receipts",
@@ -867,11 +867,11 @@ const en = {
   "tally.steps": "Export",
   "tally.stepsSubtitle": "Tally runs on your computer, so this works by file, not a live link.",
   "tally.step1": "Ledgers.",
-  "tally.step1Text": "In Tally, use Import, then Masters. Do this first, and again when you add customers. Ledgers already there may show as exceptions, which is safe.",
+  "tally.step1Text": "In Tally press Alt+O, then Import, Masters. First open Configuration and set existing masters to Modify with new data. Do this once, and again when you add customers.",
   "tally.step2": "Vouchers.",
-  "tally.step2Text": "Use Import, then Transactions. Only what hasn't been imported is in the file.",
+  "tally.step2Text": "Press Alt+O, then Import, Transactions. In Configuration, set Overwrite voucher when a voucher with same GUID exists to Yes, so a repeat import can't double your entries.",
   "tally.step3": "Confirm.",
-  "tally.step3Text": "After Tally shows them correctly, mark them here so they're not sent again.",
+  "tally.step3Text": "Check the import summary shows no errors, then mark them here so they're left out of the next file.",
   "tally.ledgers": "Ledgers file",
   "tally.vouchers": "Vouchers file",
   "tally.mark": "Mark as imported",
@@ -922,6 +922,13 @@ const en = {
   "track.invoiced": "Invoiced",
   "track.paid": "Paid",
   "track.due": "{amount} due",
+  "unit.piece": "piece",
+  "unit.kg": "kg",
+  "unit.litre": "litre",
+  "unit.metre": "metre",
+  "unit.box": "box",
+  "unit.set": "set",
+  "unit.hour": "hour",
 };
 
 export default en;

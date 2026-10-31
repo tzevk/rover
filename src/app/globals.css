@@ -782,7 +782,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 @keyframes nav-crawl { 0% { transform: scaleX(0.05); } 20% { transform: scaleX(0.45); } 100% { transform: scaleX(0.9); } }
 
 
-/* Hover effects only where a real pointer hovers (mouse/trackpad) — never "stuck" after a tap. */
+/* Hover effects only where a real pointer hovers (mouse/trackpad), never "stuck" after a tap. */
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
   .card:hover .card-ico, .stat:hover .stat-ico { transform: scale(1.08); }
@@ -798,7 +798,7 @@ a, button, label, summary, input, select, textarea { -webkit-tap-highlight-color
 body:has(.shell[data-open="true"]) { overflow: hidden; } /* no background scrolling behind the menu */
 
 @media (max-width: 960px) {
-  /* iOS zooms into any field under 16px when tapped — keep every field at 16px. */
+  /* iOS zooms into any field under 16px when tapped, keep every field at 16px. */
   .input, .select, .textarea, .input-sm, .auth-input input { font-size: 16px; }
   .topbar { min-height: 56px; font-size: 16px; }
 }

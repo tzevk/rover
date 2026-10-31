@@ -21,7 +21,7 @@ export default async function HomePage() {
 async function WorkerHome({ user }) {
   const { t } = await getI18n();
   const today = todayISO();
-  // Only counts of the worker's own work today — no amounts, no completed-order details.
+  // Only counts of the worker's own work today, no amounts, no completed-order details.
   const [[{ pending }], [{ booked }], [{ delivered }]] = await cached(
     `worker-home:${user.id}:${today}`, { tags: [TAGS.orders], ttl: 60 }, () => Promise.all([
       query(`SELECT COUNT(*) AS pending FROM orders WHERE company_id = ${user.company_id} AND status = 'pending'`),
@@ -156,7 +156,7 @@ async function AdminDashboard({ user }) {
                     <tr key={c.id}>
                       <td>
                         <Link className="cell-link" href={`/customers/${c.id}`}>{c.name}</Link>
-                        <div className="muted" style={{ fontSize: 12 }}>{c.phone || "—"}</div>
+                        <div className="muted" style={{ fontSize: 12 }}>{c.phone || "-"}</div>
                       </td>
                       <td className="num due">{inr(c.outstanding)}</td>
                     </tr>

@@ -55,13 +55,13 @@ export default async function DeliverPage({ params }) {
             <DeliveryForm order={order} vehicles={vehicles} materials={materials} gst={gst} />
           ) : (
             <dl className="kv">
-              <dt>{t("common.vehicle")}</dt><dd>{order.vehicle_number || "—"}</dd>
+              <dt>{t("common.vehicle")}</dt><dd>{order.vehicle_number || "-"}</dd>
               <dt>{t("deliver.arrived")}</dt><dd>{fmtDateTime(order.arrival_time)}</dd>
               <dt>{t("deliver.dispatched")}</dt><dd>{fmtDateTime(order.dispatch_time)}</dd>
               {order.material && <><dt>{t("production.material")}</dt><dd>{order.material}</dd></>}
               {order.net_kg != null && <><dt>{t("deliver.gross")}</dt><dd>{qty(order.gross_kg)} kg</dd><dt>{t("deliver.tare")}</dt><dd>{qty(order.tare_kg)} kg</dd><dt>{t("deliver.net")}</dt><dd>{qty(order.net_kg)} kg</dd></>}
               {order.pass_no && <><dt>{t("deliver.passNo")}</dt><dd>{order.pass_no}</dd></>}
-              <dt>{t("deliver.deliveredQty")}</dt><dd>{order.delivered_qty == null ? "—" : qty(order.delivered_qty)}</dd>
+              <dt>{t("deliver.deliveredQty")}</dt><dd>{order.delivered_qty == null ? "-" : qty(order.delivered_qty)}</dd>
               {order.tax_amount > 0 && <><dt>{t("invoices.tax")}</dt><dd>{inr(order.tax_amount)}</dd></>}
               <dt>{t("common.total")}</dt><dd>{inr(order.total_amount)}</dd>
               <dt>{t("common.paid")}</dt><dd>{inr(order.paid_amount)}{order.paid_mode && order.paid_amount > 0 ? ` · ${t(`pay.${order.paid_mode}`)}` : ""}</dd>
@@ -85,7 +85,7 @@ export default async function DeliverPage({ params }) {
                 <dt>{t("common.rate")}</dt><dd>{inr(order.rate)}</dd>
                 <dt>{t("deliver.bookedTotal")}</dt><dd>{inr(order.ordered_qty * order.rate)}</dd>
                 <dt>{t("common.booked")}</dt><dd>{fmtDateTime(order.booked_at)}</dd>
-                <dt>{t("common.address")}</dt><dd>{order.address || "—"}</dd>
+                <dt>{t("common.address")}</dt><dd>{order.address || "-"}</dd>
               </dl>
             </div>
           </Section>

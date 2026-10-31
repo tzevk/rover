@@ -90,7 +90,7 @@ export default async function AttendancePage({ searchParams }) {
                         </div>
                       </td>
                       {isAdmin && <td className="num">{inr(s.daily_wage)}</td>}
-                      {isAdmin && <td className="num">{s.status ? inr(s.daily_wage * ATTENDANCE[s.status].weight) : "—"}</td>}
+                      {isAdmin && <td className="num">{s.status ? inr(s.daily_wage * ATTENDANCE[s.status].weight) : "-"}</td>}
                     </tr>
                   ))}
                 </tbody>

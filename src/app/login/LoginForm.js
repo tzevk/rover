@@ -80,7 +80,7 @@ export default function LoginForm() {
             <span className="auth-avatar">{initial}</span>
             <div>
               <span className="auth-who-label">{t("login.signingInAs")}</span>
-              <strong>{username.trim() || "—"}</strong>
+              <strong>{username.trim() || "-"}</strong>
             </div>
           </div>
 

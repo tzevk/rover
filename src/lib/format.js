@@ -27,7 +27,7 @@ const AMPM = { en: ["am", "pm"], mr: ["म.पू.", "म.उ."] };
 
 // DB values arrive as strings ("2026-10-28" / "2026-10-28 14:05:00") thanks to dateStrings.
 export function fmtDate(s, lang = "en") {
-  if (!s) return "—";
+  if (!s) return "-";
   const [y, m, d] = s.slice(0, 10).split("-");
   return `${Number(d)} ${(MONTHS[lang] ?? MONTHS.en)[Number(m) - 1]} ${y}`;
 }
@@ -40,9 +40,9 @@ export function fmtTime(s, lang = "en") {
   return `${h}:${String(min).padStart(2, "0")} ${ampm}`;
 }
 
-export const fmtDateTime = (s, lang = "en") => (s ? `${fmtDate(s, lang)}, ${fmtTime(s, lang)}` : "—");
+export const fmtDateTime = (s, lang = "en") => (s ? `${fmtDate(s, lang)}, ${fmtTime(s, lang)}` : "-");
 
-export const UNITS = ["tonne", "brass", "cft", "cum"];
+export const UNITS = ["piece", "kg", "tonne", "litre", "metre", "box", "set", "hour", "brass", "cft", "cum"];
 
 export const PAY_MODES = ["cash", "upi", "bank", "cheque"];
 

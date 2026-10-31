@@ -74,7 +74,7 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
 
-  // Remembered in a cookie (not localStorage) so the server renders the right width — no flicker.
+  // Remembered in a cookie (not localStorage) so the server renders the right width, no flicker.
   function toggleSidebar() {
     const next = !collapsed;
     setCollapsed(next);

@@ -29,7 +29,7 @@ export default async function EnquiriesPage() {
                     <td><strong>{e.company}</strong><br /><span className="muted">{e.location}</span></td>
                     <td>{e.name}<br /><a href={`tel:${e.phone}`}>{e.phone}</a><br /><a href={`mailto:${e.email}`}>{e.email}</a></td>
                     <td>{e.business_type}{e.employees ? ` · ${e.employees}` : ""}</td>
-                    <td>{e.requirements || "—"}</td>
+                    <td>{e.requirements || "-"}</td>
                     <td className="nowrap">{fmtDateTime(e.created_at)}</td>
                   </tr>
                 ))}

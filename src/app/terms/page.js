@@ -4,7 +4,7 @@ import { SITE } from "@/lib/site";
 
 export const metadata = {
   title: "Terms of Service",
-  description: "The terms for using R.K. Enterprises quarry operations software, including trials, payment and your responsibilities.",
+  description: "The terms for using R.K. Enterprises operations software, including trials, payment and your responsibilities.",
   alternates: { canonical: "/terms" },
 };
 

@@ -1,6 +1,6 @@
 # R.K. Enterprises
 
-Orders, deliveries, customer ledgers, expenses and staff attendance for quarry businesses — with separate **Admin** (owner) and **Worker** (staff) access.
+Orders, deliveries, customer ledgers, expenses and staff attendance for small businesses, with separate **Admin** (owner) and **Worker** (staff) access.
 
 ## Commands
 
@@ -52,9 +52,9 @@ Always run the production build for real use (`npm run build && npm start`): `np
 
 ## Public site
 
-`/` shows the marketing site to visitors and the dashboard to signed-in people; `/mr` is the Marathi version, plus five capability pages. Copy lives in `src/components/landing/content.js` and `seo-pages.js`. Only list a feature as available once it exists. Demo requests appear at `/enquiries` for company 1. In production set `SITE_URL` (the real address, used for canonical links and the sitemap) and `CONTACT_PHONE` (with country code) and/or `CONTACT_EMAIL` for the contact section.
+`/` shows the marketing site to visitors and the dashboard to signed-in people; `/mr` is the Marathi version, plus seven capability pages. Copy lives in `src/components/landing/content.js` and `seo-pages.js`. Only list a feature as available once it exists. Demo requests appear at `/enquiries` for company 1. In production set `SITE_URL` (the real address, used for canonical links and the sitemap) and `CONTACT_PHONE` (with country code) and/or `CONTACT_EMAIL` for the contact section.
 
-The opening film is `src/components/landing/Scene.js`, with its ground, routes and camera shots in `world.js`. A ruled page rises into a quarry, one amber thread follows a load through nine stops with a progress rail (`Experience.js`), then the quarry folds flat into the finished register. There are no model or texture files: everything is generated in the browser, and light is baked once so phones get the same shadows. Reduced motion, slow or data-saving connections, low-memory phones and browsers without WebGL2 skip it: they get `public/quarry.webp` and the stops as a plain list. If the look changes, retake that picture from the opening shot.
+The opening film is `src/components/landing/Scene.js`, with the fan's measurements and camera shots in `world.js`. A fan of nine material samples opens on a ruled page, one blade for each step of an order. Scrolling turns it round its pin through nine stops with a progress rail (`Experience.js`), hovering parts the blades, clicking one jumps to its step, and the fan then folds flat into the finished register. There are no model files: the blade materials are painted once in the browser when the page opens. Reduced motion, slow or data-saving connections, low-memory phones and browsers without WebGL2 skip it: they get `public/fan.webp` and the stops as a plain list. If the look changes, retake that picture from the opening shot.
 
 ## Companies and billing
 
@@ -104,13 +104,13 @@ A device must sign in once with a connection first. Invoice numbers are issued o
 |---|---|---|
 | Book orders, add customers from booking | ✓ | ✓ |
 | Pending deliveries (complete with vehicle, times, qty, payment) | ✓ | ✓ |
-| Completed orders / order history | — | ✓ |
+| Completed orders / order history | - | ✓ |
 | Add expenses | ✓ | ✓ + report |
 | Mark attendance | today only | any day + wages |
 | Record production, fuel and repairs; see stock | ✓ | ✓ |
 | Print challans (quantities and weights, no prices) | ✓ | ✓ |
-| Customer balances & ledgers, daily accounts, payroll, logins, alerts | — | ✓ |
-| Materials, stock counts, vehicle records, CSV export | — | ✓ |
+| Customer balances & ledgers, daily accounts, payroll, logins, alerts | - | ✓ |
+| Materials, stock counts, vehicle records, CSV export | - | ✓ |
 
 Rules are enforced on the server (every page and action re-checks the role from the database), not just hidden in the menu.
 

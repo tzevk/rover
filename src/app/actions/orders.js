@@ -13,7 +13,7 @@ import { currentSite } from "@/lib/sites";
 import { dateTimeLocal, num, round2, text } from "@/lib/validate";
 import { getI18n } from "@/lib/i18n/server";
 
-// Totals are computed by the database (ROUND(qty × rate, 2)) — the same formula its CHECK rule enforces.
+// Totals are computed by the database (ROUND(qty × rate, 2)), the same formula its CHECK rule enforces.
 
 export const createOrder = guarded("createOrder", async (_prev, formData) => {
   const user = await requireUser();

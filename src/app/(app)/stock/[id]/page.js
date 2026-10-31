@@ -86,7 +86,7 @@ export default async function MaterialPage({ params }) {
                     <td className="nowrap">{fmtDate(x.at)}</td>
                     <td>{t(`stock.move.${x.kind}`)}</td>
                     <td className={`num${x.change_qty < 0 ? " due" : " credit"}`}>{x.change_qty > 0 ? "+" : ""}{qty(x.change_qty)}</td>
-                    <td>{x.note || "—"}</td>
+                    <td>{x.note || "-"}</td>
                   </tr>
                 ))}
               </tbody>

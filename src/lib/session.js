@@ -6,7 +6,7 @@ export const SESSION_HOURS = 12;
 
 function key() {
   const secret = process.env.SESSION_SECRET;
-  if (!secret || secret.length < 32) throw new Error("SESSION_SECRET is missing — run `npm run db:setup`.");
+  if (!secret || secret.length < 32) throw new Error("SESSION_SECRET is missing, run `npm run db:setup`.");
   return new TextEncoder().encode(secret);
 }
 

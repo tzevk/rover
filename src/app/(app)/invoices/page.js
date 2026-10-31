@@ -64,7 +64,7 @@ export default async function InvoicesPage({ searchParams }) {
                     <td className="num">{inr(r.taxable_value)}</td>
                     <td className="num">{inr(r.cgst + r.sgst + r.igst)}</td>
                     <td className="num">{inr(r.total)}</td>
-                    <td className="nowrap">{r.ewb_no || (r.status === "issued" && needsBill(r) ? <span className="badge badge-pending">{t("invoice.ewbNeeded")}</span> : "—")}</td>
+                    <td className="nowrap">{r.ewb_no || (r.status === "issued" && needsBill(r) ? <span className="badge badge-pending">{t("invoice.ewbNeeded")}</span> : "-")}</td>
                   </tr>
                 ))}
               </tbody>

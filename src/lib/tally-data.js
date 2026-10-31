@@ -17,8 +17,9 @@ export async function tallyData(cid, from, to, onlyNew) {
       [cid, from, to],
     ),
     query(
-      `SELECT o.id, DATE(o.delivered_at) AS date, c.name AS party, o.paid_amount AS amount, o.paid_mode AS mode
+      `SELECT o.id, DATE(o.delivered_at) AS date, c.name AS party, o.paid_amount AS amount, o.paid_mode AS mode, i.number
        FROM orders o JOIN customers c ON c.id = o.customer_id
+       LEFT JOIN invoices i ON i.order_id = o.id AND i.status = 'issued'
        WHERE o.company_id = ? AND o.status = 'delivered' AND o.paid_amount > 0 AND DATE(o.delivered_at) BETWEEN ? AND ? ${NEW_ONLY(onlyNew, "o")} ORDER BY o.delivered_at, o.id`,
       [cid, from, to],
     ),
@@ -38,6 +39,7 @@ export async function tallyData(cid, from, to, onlyNew) {
     company: company.tally_company || "",
     ledgers: ledgerNames(company.tally_ledgers),
     sales: sales.map((s) => ({
+      id: `rk-${cid}-sale-${s.id}`,
       date: s.date,
       number: s.number ?? `RK-${s.id}`,
       party: s.party,
@@ -51,10 +53,10 @@ export async function tallyData(cid, from, to, onlyNew) {
       total: s.total ?? s.total_amount,
     })),
     receipts: [
-      ...atDelivery.map((r) => ({ date: r.date, number: `RCD-${r.id}`, party: r.party, mode: r.mode, amount: r.amount, narration: `Paid at delivery, order ${r.id}` })),
-      ...receipts.map((r) => ({ date: r.date, number: `RCP-${r.id}`, party: r.party, mode: r.mode, amount: r.amount, narration: r.note || "Payment received" })),
+      ...atDelivery.map((r) => ({ id: `rk-${cid}-delivery-${r.id}`, date: r.date, number: `RCD-${r.id}`, party: r.party, mode: r.mode, amount: r.amount, narration: `Paid at delivery, order ${r.id}`, bill: { name: r.number ?? `RK-${r.id}`, type: "Agst Ref" } })),
+      ...receipts.map((r) => ({ id: `rk-${cid}-receipt-${r.id}`, date: r.date, number: `RCP-${r.id}`, party: r.party, mode: r.mode, amount: r.amount, narration: r.note || "Payment received", bill: { name: `RCP-${r.id}`, type: "On Account" } })),
     ],
-    payments: expenses.map((e) => ({ date: e.date, number: `PAY-${e.id}`, category: e.category, from: e.paid_from, amount: e.amount, narration: e.description || e.category })),
+    payments: expenses.map((e) => ({ id: `rk-${cid}-expense-${e.id}`, date: e.date, number: `PAY-${e.id}`, category: e.category, from: e.paid_from, amount: e.amount, narration: e.description || e.category })),
   };
 }
 

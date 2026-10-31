@@ -4,7 +4,7 @@
 // customer lists) are kept in memory for a short time. Every write invalidates exactly the tags it
 // affects, so nobody sees stale numbers after a save; the TTL is only a safety net for changes made
 // outside the app (e.g. a database restore). Concurrent misses for the same key share one database
-// call. The app runs as a single Node process, so memory is the right place for this — no extra
+// call. The app runs as a single Node process, so memory is the right place for this, no extra
 // service to run or keep in sync.
 
 const store = (globalThis.__rqCache ??= {

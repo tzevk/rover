@@ -1,5 +1,5 @@
 // मराठी शब्दसंग्रह. Terms follow the Government of Maharashtra's administrative and financial
-// glossaries (भाषा संचालनालय — शासन व्यवहार कोश, वित्तीय शब्दावली; shabdakosh.marathi.gov.in):
+// glossaries (भाषा संचालनालय: शासन व्यवहार कोश, वित्तीय शब्दावली; shabdakosh.marathi.gov.in):
 //   order मागणी · delivery वितरण · dispatch रवानगी · outstanding थकबाकी · balance बाकी/शिल्लक ·
 //   payment भरणा · bill देयक · ledger खातेवही · advance आगाऊ · payroll वेतनपट · wage मजुरी ·
 //   attendance हजेरी · admin प्रशासक · password संकेतशब्द · date दिनांक · remark शेरा.
@@ -187,7 +187,7 @@ const mr = {
   "billing.price": "{days} दिवसांसाठी {amount}.",
   "billing.pay": "आता भरा",
   "billing.unavailable": "ऑनलाइन भरणा अजून उपलब्ध नाही. पुढे सुरू ठेवण्यासाठी आमच्याशी संपर्क साधा.",
-  "meta.description": "खाणीच्या मागण्या, वितरण, खातेवही, खर्च आणि हजेरी.",
+  "meta.description": "लहान व्यवसायांसाठी मागण्या, साठा, कर्मचारी, वितरण, बीजके आणि रोख.",
 
   // सामायिक शब्द
   "common.save": "जतन करा",
@@ -296,7 +296,7 @@ const mr = {
   "greeting.evening": "शुभ संध्याकाळ",
 
   // मुख्यपृष्ठ
-  "home.workerTitle": "खाणीवरील तुमचा आजचा दिवस",
+  "home.workerTitle": "आजचे तुमचे काम",
   "home.workerSubtitle": "आजच्या कामासाठी लागणारे सर्व काही, एका स्पर्शात.",
   "home.youBooked": "आज तुम्ही नोंदवलेल्या",
   "home.ordersUnit_one": "मागणी",
@@ -305,7 +305,7 @@ const mr = {
   "home.loadsUnit_one": "खेप",
   "home.loadsUnit_other": "खेपा",
   "home.waiting": "वितरणाच्या प्रतीक्षेत",
-  "home.acrossQuarry": "संपूर्ण खाणीत",
+  "home.acrossQuarry": "संपूर्ण व्यवसायात",
   "home.tileBook": "नवीन मागणी नोंदवा",
   "home.tileBookText": "ग्राहक, परिमाण व दर.",
   "home.tileDeliverText": "वाहन, परिमाण व भरणा.",
@@ -314,7 +314,7 @@ const mr = {
   "home.tileAttendance": "आजची हजेरी",
   "home.tileAttendanceText": "हजर, गैरहजर किंवा अर्धा दिवस.",
   "home.dashboard": "आढावा",
-  "home.dashboardSubtitle": "खाणीच्या आजच्या कामकाजाचा आढावा.",
+  "home.dashboardSubtitle": "आज व्यवसाय कसा चालला आहे ते पाहा.",
   "home.totalOutstanding": "एकूण थकबाकी",
   "home.acrossCustomers": "सर्व ग्राहकांची मिळून",
   "home.todaysSales": "आजची विक्री",
@@ -403,7 +403,7 @@ const mr = {
   "deliver.complete": "वितरण पूर्ण करा",
 
   // खर्च
-  "expenses.subtitle": "खाणीचा दैनंदिन चालू खर्च.",
+  "expenses.subtitle": "रोजचा चालू खर्च.",
   "expenses.add": "खर्च नोंदवा",
   "expenses.addSubtitle": "इंधन, देखभाल-दुरुस्ती, वाहतूक, जेवण/चहा किंवा इतर",
   "expenses.choose": "निवडा…",
@@ -427,7 +427,7 @@ const mr = {
   "attendance.save": "हजेरी जतन करा",
 
   // मागणी इतिहास
-  "orders.subtitle": "प्रलंबित, वितरित व रद्द — सर्व मागण्या.",
+  "orders.subtitle": "प्रलंबित, वितरित व रद्द: सर्व मागण्या.",
   "orders.inRange": "कालावधीतील मागण्या",
   "orders.deliveredValue": "वितरित मूल्य",
   "orders.paidAtDelivery": "वितरणावेळी भरलेली",
@@ -590,7 +590,7 @@ const mr = {
   // प्रवेश
   "login.title": "प्रवेश",
   "login.kicker": "कामकाज व्यवस्थापन",
-  "login.tagline": "मागण्या, रवानगी, ग्राहकांची खातेवही आणि दैनिक हिशेब — सर्व एकाच ठिकाणी.",
+  "login.tagline": "मागण्या, रवानगी, ग्राहकांची खातेवही आणि दैनिक हिशेब, सर्व एकाच ठिकाणी.",
   "login.point1": "नोंदणी व रवानगी",
   "login.point2": "अद्ययावत थकबाकी",
   "login.point3": "दैनिक हिशेब",
@@ -608,9 +608,9 @@ const mr = {
   "login.signingIn": "प्रवेश करत आहे…",
 
   // सर्व्हरकडून येणारे संदेश
-  "action.repeat": "आधीच जतन झाले आहे — हीच माहिती पुन्हा पाठवली गेली होती.",
+  "action.repeat": "आधीच जतन झाले आहे. हीच माहिती पुन्हा पाठवली गेली होती.",
   "action.constraint": "आकडे जुळत नाहीत, त्यामुळे काहीही जतन झाले नाही. कृपया तपासून पुन्हा प्रयत्न करा.",
-  "action.offline": "सध्या ते जतन करता आले नाही. काहीही बदलले नाही — कृपया थोड्या वेळाने पुन्हा प्रयत्न करा.",
+  "action.offline": "सध्या ते जतन करता आले नाही. काहीही बदलले नाही. कृपया थोड्या वेळाने पुन्हा प्रयत्न करा.",
   "action.failed": "काहीतरी चुकले आणि काहीही जतन झाले नाही. कृपया पुन्हा प्रयत्न करा.",
   "action.markOne": "किमान एका व्यक्तीची हजेरी नोंदवा.",
   "action.attendanceSaved_one": "{date} रोजी {count} व्यक्तीची हजेरी जतन केली.",
@@ -631,7 +631,7 @@ const mr = {
   "action.qtyPositive": "परिमाण 0 पेक्षा जास्त असावे.",
   "action.ratePositive": "दर 0 पेक्षा जास्त असावा.",
   "action.customerGone": "हा ग्राहक आता अस्तित्वात नाही.",
-  "action.orderBooked": "मागणी #{id} {name} यांच्यासाठी नोंदवली — {total}",
+  "action.orderBooked": "मागणी #{id} {name} यांच्यासाठी नोंदवली: {total}",
   "action.vehicle": "वाहन क्रमांक भरा.",
   "action.times": "वाहन आगमन व रवानगी या दोन्ही वेळा भरा.",
   "action.dispatchBeforeArrival": "रवानगीची वेळ आगमनापूर्वीची असू शकत नाही.",
@@ -642,12 +642,12 @@ const mr = {
   "action.nameRequired": "नाव आवश्यक आहे.",
   "action.wage": "योग्य दैनिक मजुरी भरा.",
   "action.saved": "जतन केले.",
-  "action.usernameRule": "वापरकर्ता नाव: 3–50 अक्षरे — इंग्रजी अक्षरे, अंक, बिंदू, डॅश किंवा अंडरस्कोर.",
+  "action.usernameRule": "वापरकर्ता नाव: 3–50 अक्षरे: इंग्रजी अक्षरे, अंक, बिंदू, डॅश किंवा अंडरस्कोर.",
   "action.fullName": "पूर्ण नाव आवश्यक आहे.",
   "action.passwordLength": "संकेतशब्द किमान 8 अक्षरांचा असावा.",
   "action.usernameTaken": "“{username}” हे वापरकर्ता नाव आधीच घेतलेले आहे.",
   "action.loginCreated": "{name} ({username}) यांच्यासाठी लॉगिन तयार केले.",
-  "action.passwordUpdated": "संकेतशब्द बदलला — त्यांचे इतर उपकरणांवरील सत्र बंद केले आहे.",
+  "action.passwordUpdated": "संकेतशब्द बदलला. त्यांचे इतर उपकरणांवरील सत्र बंद केले आहे.",
 
   // Finance, sites and the offline gate
   "nav.cash": "दैनिक रोख",
@@ -862,7 +862,7 @@ const mr = {
   "stock.gstRule": "जीएसटी दर ० ते ४० दरम्यान असावा.",
   "stock.royalty": "प्रति एकक रॉयल्टी (₹)",
   "stock.royaltyHint": "नसल्यास रिकामे ठेवा. सध्याचा शासकीय दर तपासा.",
-  "tally.subtitle": "विक्री, जमा आणि खर्च आयात फाइलद्वारे TallyPrime मध्ये पाठवा.",
+  "tally.subtitle": "विक्री, जमा आणि खर्च TallyPrime मध्ये पाठवा. ग्राहक GSTIN आणि राज्यासह जातात आणि बिले त्यांच्या जमा रकमेशी जुळतात.",
   "tally.new": "टॅलीसाठी नवीन",
   "tally.sales": "विक्री",
   "tally.receipts": "जमा",
@@ -871,11 +871,11 @@ const mr = {
   "tally.steps": "निर्यात",
   "tally.stepsSubtitle": "टॅली तुमच्या संगणकावर चालते, त्यामुळे हे थेट जोडणीने नव्हे तर फाइलद्वारे होते.",
   "tally.step1": "खाती.",
-  "tally.step1Text": "टॅलीत Import, नंतर Masters वापरा. हे आधी करा आणि नवीन ग्राहक जोडल्यावर पुन्हा करा. आधीपासून असलेली खाती अपवाद म्हणून दिसू शकतात, ते सुरक्षित आहे.",
+  "tally.step1Text": "टॅलीत Alt+O, नंतर Import, Masters. आधी Configuration उघडून आधीच्या मास्टर्ससाठी Modify with new data निवडा. हे एकदा करा आणि नवीन ग्राहक जोडल्यावर पुन्हा करा.",
   "tally.step2": "व्हाउचर.",
-  "tally.step2Text": "Import, नंतर Transactions वापरा. फाइलमध्ये फक्त आयात न झालेल्या नोंदी असतात.",
+  "tally.step2Text": "Alt+O, नंतर Import, Transactions. Configuration मध्ये Overwrite voucher when a voucher with same GUID exists ला Yes करा, म्हणजे पुन्हा आयात केल्याने नोंदी दुप्पट होणार नाहीत.",
   "tally.step3": "खात्री करा.",
-  "tally.step3Text": "टॅलीत बरोबर दिसल्यावर इथे खूण करा, म्हणजे त्या पुन्हा जाणार नाहीत.",
+  "tally.step3Text": "आयात सारांशात चुका नाहीत हे तपासा, मग इथे खूण करा, म्हणजे त्या पुढच्या फाइलमध्ये येणार नाहीत.",
   "tally.ledgers": "खाती फाइल",
   "tally.vouchers": "व्हाउचर फाइल",
   "tally.mark": "आयात झाले म्हणून खूण करा",
@@ -926,6 +926,13 @@ const mr = {
   "track.invoiced": "बीजक दिले",
   "track.paid": "भरले",
   "track.due": "{amount} बाकी",
+  "unit.piece": "नग",
+  "unit.kg": "किग्रॅ",
+  "unit.litre": "लिटर",
+  "unit.metre": "मीटर",
+  "unit.box": "बॉक्स",
+  "unit.set": "संच",
+  "unit.hour": "तास",
 };
 
 export default mr;

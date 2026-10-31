@@ -55,7 +55,7 @@ export default async function CashPage({ searchParams }) {
         <Stat accent icon={Banknote} label={t("cash.expected")} value={inr(closing ? closing.expected : expected)} hint={t("cash.covers", { period: covers })} />
         <Stat icon={ArrowDownLeft} tone="ok" label={t("cash.in")} value={inr(cashIn)} hint={t("cash.inHint", { sales: inr(m.cashSales), dues: inr(m.cashReceived) })} />
         <Stat icon={ArrowUpRight} tone="danger" label={t("cash.out")} value={inr(m.cashExpenses)} />
-        {closing && <Stat icon={TriangleAlert} tone={closing.difference === 0 ? "ok" : "danger"} label={t("cash.difference")} value={inr(closing.difference)} hint={t("cash.countedBy", { amount: inr(closing.counted), name: closing.full_name || "—" })} />}
+        {closing && <Stat icon={TriangleAlert} tone={closing.difference === 0 ? "ok" : "danger"} label={t("cash.difference")} value={inr(closing.difference)} hint={t("cash.countedBy", { amount: inr(closing.counted), name: closing.full_name || "-" })} />}
       </div>
 
       {changedBy !== 0 && (
@@ -80,7 +80,7 @@ export default async function CashPage({ searchParams }) {
                 <tbody>
                   {m.sales.map((s) => <tr key={`s${s.id}`}><td><Link className="cell-link" href={`/deliveries/${s.id}`}>{s.name}</Link><div className="muted" style={{ fontSize: 12 }}>{t("cash.atDelivery")}</div></td><td className="num credit">+{inr(s.amount)}</td></tr>)}
                   {m.received.map((r) => <tr key={`r${r.id}`}><td>{r.name}<div className="muted" style={{ fontSize: 12 }}>{t("cash.duesPaid")}</div></td><td className="num credit">+{inr(r.amount)}</td></tr>)}
-                  {m.expenses.map((e) => <tr key={`e${e.id}`}><td>{t(`expense.${e.category}`)}<div className="muted" style={{ fontSize: 12 }}>{e.description || "—"}</div></td><td className="num due">−{inr(e.amount)}</td></tr>)}
+                  {m.expenses.map((e) => <tr key={`e${e.id}`}><td>{t(`expense.${e.category}`)}<div className="muted" style={{ fontSize: 12 }}>{e.description || "-"}</div></td><td className="num due">−{inr(e.amount)}</td></tr>)}
                 </tbody>
               </table>
             </div>
@@ -100,7 +100,7 @@ export default async function CashPage({ searchParams }) {
                     <td className="num">{inr(h.expected)}</td>
                     <td className="num">{inr(h.counted)}</td>
                     <td className={`num${h.difference < 0 ? " due" : h.difference > 0 ? " credit" : ""}`}>{inr(h.difference)}</td>
-                    <td>{h.note || "—"}</td>
+                    <td>{h.note || "-"}</td>
                   </tr>
                 ))}
               </tbody>

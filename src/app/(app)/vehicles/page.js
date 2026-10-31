@@ -130,10 +130,10 @@ export default async function VehiclesPage() {
                   <tr key={v.id}>
                     <td><strong>{v.number}</strong><div className="muted" style={{ fontSize: 12 }}>{t(`vehicles.${v.ownership}`)}{v.driver ? ` · ${v.driver}` : ""}</div></td>
                     <td className="num">{v.trips}</td>
-                    <td className="num">{v.tare_kg ? qty(v.tare_kg) : "—"}</td>
+                    <td className="num">{v.tare_kg ? qty(v.tare_kg) : "-"}</td>
                     <td className="num">{qty(v.litres)}</td>
                     {isAdmin && <td className="num">{inr(v.fuel_cost + v.work_cost)}</td>}
-                    <td className={`nowrap${v.next_due && v.next_due <= today ? " due" : ""}`}>{v.next_due ? fmtDate(v.next_due) : "—"}</td>
+                    <td className={`nowrap${v.next_due && v.next_due <= today ? " due" : ""}`}>{v.next_due ? fmtDate(v.next_due) : "-"}</td>
                   </tr>
                 ))}
               </tbody>

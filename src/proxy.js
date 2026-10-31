@@ -37,7 +37,7 @@ function overLimit(key, max) {
 const APP_PATHS = ["/orders", "/deliveries", "/expenses", "/attendance", "/production", "/stock", "/vehicles", "/alerts", "/customers", "/accounts", "/payroll", "/staff", "/users", "/activity", "/company", "/billing", "/enquiries", "/cash", "/invoices", "/gst", "/royalty", "/tally", "/sites", "/api"];
 const needsLogin = (pathname) => APP_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-const SEO_PAGES = ["/quarry-management-software", "/stone-crusher-management-software", "/aggregate-inventory-management", "/weighbridge-management-software", "/quarry-dispatch-management"];
+const SEO_PAGES = ["/small-business-operations-software", "/workshop-management-software", "/quarry-management-software", "/stone-crusher-management-software", "/aggregate-inventory-management", "/weighbridge-management-software", "/quarry-dispatch-management"];
 // /gate holds no data of its own: it's the shell that works offline. Its API routes check the login
 // themselves, so a device can be told "sign in again" instead of being redirected to a web page.
 const PUBLIC = ["/login", "/signup", "/terms", "/privacy", "/gate", "/api/health", "/api/billing/webhook", "/api/offline/snapshot", "/api/offline/sync"];

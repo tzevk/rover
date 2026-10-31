@@ -123,8 +123,8 @@ async function ExpenseReport({ cid, searchParams: sp, today }) {
                 <tr key={e.id}>
                   <td className="nowrap">{fmtDate(e.expense_date)}</td>
                   <td>{t(`expense.${e.category}`)}</td>
-                  <td className="muted">{e.description || "—"}</td>
-                  <td>{e.full_name || "—"}</td>
+                  <td className="muted">{e.description || "-"}</td>
+                  <td>{e.full_name || "-"}</td>
                   <td className="num">{inr(e.amount)}</td>
                   <td className="right">
                     <form action={deleteExpense.bind(null, e.id)}>

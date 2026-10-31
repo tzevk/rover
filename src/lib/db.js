@@ -6,7 +6,7 @@ const REQUIRED = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "SESSION_SECRE
 
 function createPool() {
   const missing = REQUIRED.filter((k) => !process.env[k]);
-  if (missing.length) throw new Error(`Missing ${missing.join(", ")} — run \`npm run db:migrate\`.`);
+  if (missing.length) throw new Error(`Missing ${missing.join(", ")}, run \`npm run db:migrate\`.`);
 
   const pool = mysql.createPool({
     host: process.env.DB_HOST,

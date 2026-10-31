@@ -70,7 +70,7 @@ export const resetPassword = guarded("resetPassword", async (_prev, formData) =>
     return u;
   });
   invalidate(TAGS.users);
-  // Everyone using the old password is signed out — except you, if you changed your own.
+  // Everyone using the old password is signed out, except you, if you changed your own.
   if (id === me.id && user) {
     await setSessionCookie(user);
   }

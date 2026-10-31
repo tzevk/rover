@@ -110,8 +110,8 @@ export default async function ProductionPage({ searchParams }) {
                     <td className="nowrap">{fmtDate(r.prod_date)}<div className="muted" style={{ fontSize: 12 }}>{t(`production.${r.shift}`)}</div></td>
                     <td><strong>{r.name}</strong></td>
                     <td className="num">{qty(r.qty)} {t(`unit.${r.unit}`)}</td>
-                    <td>{r.input_name ? `${r.input_name} · ${qty(r.input_qty)} ${t(`unit.${r.input_unit}`)}` : "—"}</td>
-                    <td>{r.note || "—"}<div className="muted" style={{ fontSize: 12 }}>{r.full_name || ""}</div></td>
+                    <td>{r.input_name ? `${r.input_name} · ${qty(r.input_qty)} ${t(`unit.${r.input_unit}`)}` : "-"}</td>
+                    <td>{r.note || "-"}<div className="muted" style={{ fontSize: 12 }}>{r.full_name || ""}</div></td>
                     {isAdmin && (
                       <td className="right">
                         <form action={deleteProduction.bind(null, r.id)}>

@@ -37,7 +37,7 @@ function findMysqld() {
   const candidates = [process.env.MYSQLD, "/opt/homebrew/opt/mysql/bin/mysqld", "/usr/local/opt/mysql/bin/mysqld", "/usr/sbin/mysqld"];
   try { candidates.push(execFileSync("which", ["mysqld"]).toString().trim()); } catch {}
   const found = candidates.find((p) => p && fs.existsSync(p));
-  if (!found) throw new Error("mysqld not found — install it with `brew install mysql` (or set MYSQLD=/path/to/mysqld).");
+  if (!found) throw new Error("mysqld not found, install it with `brew install mysql` (or set MYSQLD=/path/to/mysqld).");
   return found;
 }
 
@@ -157,7 +157,7 @@ async function main() {
   const stopApp = () => new Promise((resolve) => { app.once("exit", resolve); app.kill(); });
   await startApp();
   const health = await (await fetch(`${BASE}/api/health`)).json();
-  check(health.status === "ok" && health.schema === "011_tally_offline.sql", "health check reports app + database up");
+  check(health.status === "ok" && health.schema === "012_more_units.sql", "health check reports app + database up");
   const loginPage = await fetch(`${BASE}/login`);
   check(loginPage.headers.get("content-security-policy")?.includes("frame-ancestors 'none'") && loginPage.headers.get("x-content-type-options") === "nosniff"
     && loginPage.headers.get("strict-transport-security") && !loginPage.headers.get("x-powered-by"), "security headers are sent and the framework is not advertised");
@@ -361,7 +361,7 @@ async function main() {
     check((await theme()) === before && await admin.evaluate(() => document.documentElement.lang) === "en", "switching back restores English");
     await worker.goto(`${BASE}/`);
     await worker.click('.topbar .pref-btn[lang="mr"]');
-    await worker.waitForSelector("h1:has-text('खाणीवरील')");
+    await worker.waitForSelector("h1:has-text('आजचे')");
     await worker.goto(`${BASE}/orders/new`);
     check(await worker.evaluate(() => document.documentElement.scrollWidth) <= 390, "Marathi fits a phone screen without sideways scrolling");
     await shot(worker, "mr-phone-new-order");
@@ -377,8 +377,10 @@ async function main() {
 
     await admin.goto(`${BASE}/stock`);
     check(await seen(admin, "text=No materials yet"), "stock starts empty, with a clear next step");
+    check(await admin.inputValue('select[name="unit"]') === "piece", "new items are counted in pieces unless you choose otherwise");
     const addMaterial = async (name, rate, opening, low) => {
       await admin.fill('input[name="name"]', name);
+      await admin.selectOption('select[name="unit"]', "tonne");
       await admin.fill('input[name="default_rate"]', rate);
       await admin.fill('input[name="opening_stock"]', opening);
       await admin.fill('input[name="low_stock"]', low);
@@ -927,13 +929,17 @@ async function main() {
       const doc = new DOMParser().parseFromString(xml, "application/xml");
       if (doc.querySelector("parsererror")) return { broken: true };
       const vouchers = [...doc.querySelectorAll("VOUCHER")].map((v) => {
-        const entries = [...v.querySelectorAll("ALLLEDGERENTRIES\\.LIST")];
+        const entries = [...v.querySelectorAll("LEDGERENTRIES\\.LIST")];
         return {
           type: v.getAttribute("VCHTYPE"),
           sum: entries.reduce((s, e) => s + Math.round(Number(e.querySelector("AMOUNT").textContent) * 100), 0),
           signsOk: entries.every((e) => (e.querySelector("ISDEEMEDPOSITIVE").textContent === "Yes") === (Number(e.querySelector("AMOUNT").textContent) < 0)),
           ledgers: entries.map((e) => e.querySelector("LEDGERNAME").textContent),
           date: v.querySelector("DATE").textContent,
+          id: v.querySelector("GUID").textContent,
+          remoteId: v.getAttribute("REMOTEID"),
+          parties: entries.filter((e) => e.querySelector("ISPARTYLEDGER").textContent === "Yes").length,
+          bills: [...v.querySelectorAll("BILLALLOCATIONS\\.LIST")].map((b) => b.querySelector("BILLTYPE").textContent),
         };
       });
       return { vouchers, ledgers: [...doc.querySelectorAll("LEDGER")].map((l) => [l.getAttribute("NAME"), l.querySelector("PARENT").textContent]) };
@@ -947,6 +953,10 @@ async function main() {
     check(["Sales", "Receipt", "Payment"].every((type) => parsed.vouchers.some((v) => v.type === type)), "sales, receipts and expenses all come across");
     check(parsed.vouchers.some((v) => v.ledgers.includes("Output CGST") && v.ledgers.includes("Output SGST")), "GST goes to its own ledgers");
     check(parsed.vouchers.every((v) => /^\d{8}$/.test(v.date)), "dates are in Tally's format");
+    check(parsed.vouchers.every((v) => v.id && v.id === v.remoteId) && new Set(parsed.vouchers.map((v) => v.id)).size === parsed.vouchers.length, "every voucher keeps its own id, so importing twice overwrites instead of doubling");
+    const sales = parsed.vouchers.filter((v) => v.type === "Sales");
+    check(sales.every((v) => v.parties === 1 && v.bills.join() === "New Ref"), "each sale raises a bill against the customer");
+    check(parsed.vouchers.some((v) => v.type === "Receipt" && v.bills.length === 1 && ["Agst Ref", "On Account"].includes(v.bills[0])), "receipts settle against a bill, or go on account");
     const mastersFile = await tallyFile("masters");
     const masters = await parseTally(mastersFile.text);
     check(masters.ledgers.some(([n, group]) => n === "Shree & Sons <Pune>" && group === "Sundry Debtors"), "customers become Sundry Debtors ledgers");
@@ -1105,18 +1115,17 @@ async function main() {
     const q0 = async (sql) => (await rootConn.query(`USE ${DB}`), (await rootConn.query(sql))[0]);
     const visitor = await newPage(await browser.newContext());
     await visitor.goto(`${BASE}/`);
-    check(new URL(visitor.url()).pathname === "/" && await seen(visitor, "h1:has-text('Run your quarry from one place')"), "visitors get the landing page at /");
-    check((await visitor.title()).includes("Quarry Management Software"), "the page title carries the main search terms");
+    check(new URL(visitor.url()).pathname === "/" && await seen(visitor, "h1:has-text('Run your business from one place')"), "visitors get the landing page at /");
+    check((await visitor.title()).includes("Operations Software for Small Businesses"), "the page title carries the main search terms");
     check(await visitor.getAttribute('link[rel="canonical"]', "href") === `${process.env.SITE_URL || "http://localhost:3000"}`, "the canonical address is set");
     check((await visitor.getAttribute('meta[name="robots"]', "content")).startsWith("index"), "the landing page can be indexed");
     const ld = JSON.parse(await visitor.textContent('script[type="application/ld+json"]'));
     check(ld["@graph"].some((n) => n["@type"] === "SoftwareApplication"), "structured data describes the product");
-    check(ld["@graph"][1].featureList.some((f) => /GST/.test(f)) && !ld["@graph"][1].featureList.some((f) => /Tally/.test(f)), "only finished modules are listed as features");
-    check(await seen(visitor, ".tag-partial:near(:text('Tally Export'))"), "a module that still needs checking on your side says so");
-    check(await seen(visitor, "text=E-invoicing (IRN) isn't included yet"), "the website says plainly what isn't included");
+    check(ld["@graph"][1].featureList.some((f) => /GST/.test(f)) && ld["@graph"][1].featureList.some((f) => /Tally/.test(f)) && !ld["@graph"][1].featureList.some((f) => /IRN/.test(f)), "only finished modules are listed as features");
+    check(await seen(visitor, "text=Not included yet: e-invoicing (IRN)"), "the website says plainly what isn't included");
     await visitor.fill('.demo-form input[name="name"]', "Demo Person");
     await visitor.fill('.demo-form input[name="company"]', "Test Stone Works");
-    await visitor.selectOption('.demo-form select[name="business_type"]', "Quarry");
+    await visitor.selectOption('.demo-form select[name="business_type"]', "Workshop or garage");
     await visitor.fill('.demo-form input[name="location"]', "Pune");
     await visitor.fill('.demo-form input[name="phone"]', "+91 98765 43210");
     await visitor.fill('.demo-form input[name="email"]', "demo@example.com");
@@ -1125,7 +1134,7 @@ async function main() {
     check((await q0("SELECT COUNT(*) AS n FROM enquiries WHERE company = 'Test Stone Works'"))[0].n === 1, "the request is saved");
     await admin.goto(`${BASE}/enquiries`);
     check(await seen(admin, "text=Test Stone Works"), "the owner sees demo requests");
-    for (const s of ["quarry-management-software", "stone-crusher-management-software", "aggregate-inventory-management", "weighbridge-management-software", "quarry-dispatch-management"]) {
+    for (const s of ["small-business-operations-software", "workshop-management-software", "quarry-management-software", "stone-crusher-management-software", "aggregate-inventory-management", "weighbridge-management-software", "quarry-dispatch-management"]) {
       await visitor.goto(`${BASE}/${s}`);
       check(await seen(visitor, "h1") && (await visitor.getAttribute('link[rel="canonical"]', "href")).endsWith(`/${s}`), `/${s} is public, with its own canonical address`);
     }
@@ -1272,7 +1281,7 @@ async function main() {
     const manifest = await (await fetch(`${BASE}/manifest.webmanifest`)).json();
     check(manifest.icons.some((i) => i.sizes === "512x512" && i.purpose === "maskable"), "the app can be installed with a proper icon");
 
-    const PUBLIC_PAGES = ["/", "/mr", "/quarry-management-software", "/stone-crusher-management-software", "/aggregate-inventory-management", "/weighbridge-management-software", "/quarry-dispatch-management", "/terms", "/privacy", "/login", "/signup"];
+    const PUBLIC_PAGES = ["/", "/mr", "/small-business-operations-software", "/workshop-management-software", "/quarry-management-software", "/stone-crusher-management-software", "/aggregate-inventory-management", "/weighbridge-management-software", "/quarry-dispatch-management", "/terms", "/privacy", "/login", "/signup"];
     const APP_PAGES = ["/", "/orders/new", "/orders", "/deliveries", "/expenses", "/attendance", "/production", "/stock", "/vehicles", "/alerts", "/customers", `/customers/${local}`, "/accounts", "/payroll", "/staff", "/users", "/activity", "/company", "/billing", "/enquiries", "/cash", "/invoices", `/invoices/${inv.id}`, "/gst", "/royalty", "/tally", "/sites"];
     const sideways = (page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     const phoneVisitor = { "x-forwarded-for": "198.51.100.7" };
@@ -1344,13 +1353,13 @@ async function main() {
     const nowShowing = () => film.locator(".stop[data-state='now'] h3").textContent(); // the card may still be fading in
     await film.evaluate(() => { const j = document.querySelector("[data-journey]"); window.scrollTo(0, j.offsetTop + 40); });
     await film.waitForFunction(() => document.querySelector(".stop[data-state='now']"), null, { timeout: 8000 });
-    check(await nowShowing() === "Production", "the journey starts at production");
+    check(await nowShowing() === "Order", "the journey starts at the order");
     check(await film.locator("[data-rail-count]").textContent() === "1 / 9", "the progress rail starts at the first of nine stops");
     await film.waitForTimeout(1500); // let the scroll above finish, as a person's would
     await film.click('[data-step="5"]');
-    await film.waitForFunction(() => document.querySelector(".stop[data-state='now'] h3")?.textContent === "Weighbridge", null, { timeout: 15000 }).catch(() => {});
+    await film.waitForFunction(() => document.querySelector(".stop[data-state='now'] h3")?.textContent === "Invoice", null, { timeout: 15000 }).catch(() => {});
     const jumpedTo = await nowShowing();
-    check(jumpedTo === "Weighbridge", `the rail jumps straight to a stop (${jumpedTo})`);
+    check(jumpedTo === "Invoice", `the rail jumps straight to a stop (${jumpedTo})`);
     check(await film.locator(".rail button[data-state='past']").count() === 5, "stops already passed are marked on the rail");
     // Smooth scrolling can still be finishing the jump at a frame or two a second, so keep asking.
     const railDone = () => Number(document.querySelector(".rail").style.getPropertyValue("--done"));
@@ -1360,7 +1369,7 @@ async function main() {
       return Number(document.querySelector(".rail").style.getPropertyValue("--done")) >= 0.99;
     }, null, { timeout: 25000, polling: 700 }).catch(() => {});
     const filled = await film.evaluate(railDone);
-    check(await nowShowing() === "Financial Reconciliation" && filled >= 0.99, `the rail fills end to end by the last stop (${filled})`);
+    check(await nowShowing() === "Daily Cash" && filled >= 0.99, `the rail fills end to end by the last stop (${filled})`);
     await film.evaluate(() => window.scrollTo(0, document.querySelector("[data-fold]").offsetTop));
     check(await film.locator(".register li").count() === 9 && await seen(film, ".register h2"), "the journey ends on the finished register");
     check(await film.locator(".register small").innerText() === "Sample data", "the figures in it are labelled as sample data");
@@ -1380,9 +1389,9 @@ async function main() {
     saving.on("response", (r) => { if (/three|Scene/i.test(r.url())) heavy3d.push(r.url()); });
     await saving.goto(`${BASE}/welcome`);
     await saving.waitForTimeout(1200);
-    check(await saving.locator("canvas").count() === 0 && await saving.evaluate(() => getComputedStyle(document.querySelector(".stage")).backgroundImage.includes("quarry.webp")), "on a data-saving connection the still picture is shown instead");
+    check(await saving.locator("canvas").count() === 0 && await saving.evaluate(() => getComputedStyle(document.querySelector(".stage")).backgroundImage.includes("fan.webp")), "on a data-saving connection the still picture is shown instead");
     await savingCtx.close();
-    const poster = await fetch(`${BASE}/quarry.webp`);
+    const poster = await fetch(`${BASE}/fan.webp`);
     check(poster.ok && (await poster.arrayBuffer()).byteLength < 120 * 1024, "the still picture is small");
 
     console.log("▸ Performance & cache");

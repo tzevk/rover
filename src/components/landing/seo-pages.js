@@ -1,11 +1,42 @@
-// Capability pages. Each answers one real search with information specific to it, and states
-// plainly what the software does today and what's planned.
+// Capability pages, general ones first, then pages for particular trades. Each answers one real
+// search with information specific to it, and states plainly what the software does and what's planned.
 export const SEO_PAGES = {
+  "small-business-operations-software": {
+    title: "Small Business Operations Software: Orders to Cash | R.K. Enterprises",
+    description: "One system for orders, stock, staff, deliveries, GST invoices and daily cash, built for small businesses in India, in English and Marathi.",
+    h1: "Operations software for small businesses",
+    intro: "A small business usually runs on a few registers, a phone full of messages and the owner's memory. This software puts orders, stock, staff, deliveries and money in one place, so the figures match and you don't have to carry them in your head.",
+    sections: [
+      ["What it covers", "Take an order, check the stock, record what was made, send it out with a challan, issue the GST invoice and take the payment. That one order updates stock, the customer's balance and the day's accounts."],
+      ["Who sees what", "Staff logins handle daily work: bookings, deliveries, expenses and attendance. Balances, reports, payroll and logins stay with the owner. Every change is logged with who made it and when."],
+      ["For the way you work", "Set up your own items in pieces, kg, litres, metres, boxes or sets. Use it in English or Marathi, on a phone or a computer, and keep working when the internet drops."],
+    ],
+    available: ["Orders and customers", "Stock with physical counts", "Production by shift", "Attendance and payroll", "Deliveries and challans", "GST invoices", "Customer ledgers and credit limits", "Daily cash count", "Tally export", "More than one branch"],
+    planned: ["E-invoicing (IRN)", "Tracking stock moved between branches"],
+    faqs: [
+      ["Do I need to be a big company to use it?", "No. It's made for small businesses. Use only the parts you need and leave the rest switched off."],
+      ["Can staff use it on their phones?", "Yes. It runs in the browser on any phone or computer."],
+    ],
+  },
+  "workshop-management-software": {
+    title: "Workshop Management Software in India | R.K. Enterprises",
+    description: "Orders, parts stock, staff attendance, wages, GST invoices and customer balances in one system for workshops and garages.",
+    h1: "Workshop management software",
+    intro: "A workshop juggles jobs, parts, staff and customers who pay in parts. When those live in different notebooks, it's hard to say what's pending, what's in stock and who still owes you.",
+    sections: [
+      ["Every job has a record", "Book the job against the customer with its item, quantity and rate. It stays on the pending list until it's delivered, so nothing is forgotten."],
+      ["Parts and stock", "Keep items in pieces, kg, litres, metres or sets. Stock goes down with each delivery, and a physical count corrects the book and keeps the difference on record."],
+      ["Staff and money", "Mark attendance once a day and wages follow. Payments taken now or later come off the customer's balance, and the cash box is counted at closing."],
+    ],
+    available: ["Job and order booking", "Parts and item stock", "Attendance and payroll", "GST invoices", "Customer balances", "Daily expenses and cash count", "Tally export"],
+    planned: ["Job cards with labour hours"],
+    faqs: [["Does it print invoices?", "Yes. With GST switched on, each delivery issues a tax invoice you can print, and each month is sorted into GSTR-1 working sheets."]],
+  },
   "quarry-management-software": {
     title: "Quarry Management Software for Indian Operators | R.K. Enterprises",
     description: "Manage quarry orders, dispatch, customer ledgers, expenses, attendance and payroll in one system, in English and Marathi.",
     h1: "Quarry management software",
-    intro: "A quarry generates records all day: orders at the office, vehicles at the gate, cash at the counter, attendance on site. This software keeps those records in one system so they agree with each other.",
+    intro: "A quarry makes records all day: orders at the office, trucks at the gate, cash at the counter, attendance on site. This software keeps them in one system, so the figures match.",
     sections: [
       ["What it covers today", "Production is recorded by shift and goes into stock. Staff book orders against a material, weigh each truck in and out, and record the payment. That one delivery reduces stock, updates the customer's balance and appears in the daily accounts."],
       ["Who sees what", "Staff logins handle daily work: bookings, deliveries, expenses and attendance. Customer balances, reports, payroll and logins are limited to the owner. Every change is logged with who made it and when."],
@@ -22,7 +53,7 @@ export const SEO_PAGES = {
     title: "Stone Crusher Management Software India | R.K. Enterprises",
     description: "Software for stone crushers to book orders, record each load, track customer balances and manage staff wages.",
     h1: "Stone crusher management software",
-    intro: "A stone crusher sells by the load, often on credit, to customers who pay in parts. The difficulty is rarely the sale. It's knowing later what was delivered and what is still owed.",
+    intro: "A stone crusher sells by the load, often on credit, to customers who pay in parts. The hard part comes later: working out what was delivered and what's still owed.",
     sections: [
       ["Selling by the load", "Orders hold the agreed rate, and the bill follows the quantity actually delivered, so a short load doesn't leave the wrong figure on the ledger."],
       ["Part payments and advances", "Money taken at delivery and payments made later both count against the same customer balance. Advances show as credit."],
@@ -36,7 +67,7 @@ export const SEO_PAGES = {
     title: "Aggregate Inventory Management Software | R.K. Enterprises",
     description: "Track aggregate stock by material from production, deliveries and physical counts, with low stock and variance warnings.",
     h1: "Aggregate inventory management",
-    intro: "Aggregate stock is hard to count. It sits in open piles, moves by the truckload and changes through the day. Useful stock figures depend on recording what comes in and what goes out consistently.",
+    intro: "Aggregate stock is hard to count. It sits in open piles and moves by the truckload all day. A stock figure is only as good as the record of what came in and what went out.",
     sections: [
       ["Why stock figures drift", "Dispatches are usually recorded, but production and internal movements often aren't. The difference only appears at a physical stock check, when it's too late to find out why. Moisture and density make it harder still."],
       ["How stock is worked out here", "Stock isn't typed in. It's calculated from the opening figure, production by shift, raw material used and every delivery, so it always agrees with the records behind it."],
@@ -50,9 +81,9 @@ export const SEO_PAGES = {
     title: "Weighbridge Software for Quarries in India | R.K. Enterprises",
     description: "Gross, tare and net records tied to quarry orders, with stored empty weights, printed challans and direct indicator reading.",
     h1: "Weighbridge management for quarries",
-    intro: "The weighbridge is where a quarry's quantities become facts. The value comes from connecting that weight to the order, the vehicle and the customer's account, without copying it by hand.",
+    intro: "Every tonne you sell crosses the weighbridge. The weight should reach the order, the vehicle and the customer's account without anyone copying it from a slip.",
     sections: [
-      ["What a connected weighbridge record needs", "Gross weight, tare weight, the net weight between them, the vehicle and the order it belongs to. Each of those normally ends up on a slip that someone copies later."],
+      ["What a weighbridge record needs", "Gross weight, tare weight, the net between them, the vehicle and the order. Usually all of that ends up on a slip that someone copies later."],
       ["How weighing works", "A truck is weighed in empty and that arrival is saved, so a different person can finish the order. When it's weighed out loaded, the net weight is worked out and converted into the order's unit. A truck's empty weight is remembered for next time."],
       ["Reading the indicator directly", "Chrome and Edge on a computer can read a serial weighbridge indicator directly, and only accept a weight once it holds steady. Output formats vary by make, so we check your indicator before relying on it. Weights can always be typed in."],
     ],
@@ -64,7 +95,7 @@ export const SEO_PAGES = {
     title: "Quarry Dispatch Management Software | R.K. Enterprises",
     description: "Track pending quarry deliveries with vehicle, arrival and dispatch times, delivered quantity and payment against every order.",
     h1: "Quarry dispatch management",
-    intro: "Dispatch is where an order turns into money. When loads are tracked apart from orders, it gets hard to tell what's still pending, what went out, and what was collected at the gate.",
+    intro: "When loads are tracked apart from orders, it's hard to tell what's still pending, what went out and what was collected at the gate.",
     sections: [
       ["One list of pending deliveries", "Every booked order appears in a pending list, oldest first on the owner's dashboard, so nothing waits unnoticed."],
       ["A complete record for each load", "Completing a delivery captures the vehicle number, arrival and dispatch times, delivered quantity and the amount paid. The system won't accept dispatch before arrival."],

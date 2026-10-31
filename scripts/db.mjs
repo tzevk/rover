@@ -18,7 +18,7 @@ import mysql from "mysql2/promise";
 import { hashPassword } from "../src/lib/password.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-// Settings live in .env.local or .env — use whichever exists (prefer .env.local, as Next.js does).
+// Settings live in .env.local or .env, use whichever exists (prefer .env.local, as Next.js does).
 const ENV_FILE = path.resolve(
   root,
   process.env.ENV_FILE || (fs.existsSync(path.join(root, ".env.local")) || !fs.existsSync(path.join(root, ".env")) ? ".env.local" : ".env"),
@@ -192,10 +192,10 @@ async function migrate() {
       DB_TZ: fileEnv.DB_TZ || "+05:30",
       SESSION_SECRET: fileEnv.SESSION_SECRET || secret(48),
     });
-    log(`✓ Wrote ${path.relative(root, ENV_FILE)} (app login only — the owner password is not stored)`);
+    log(`✓ Wrote ${path.relative(root, ENV_FILE)} (app login only, the owner password is not stored)`);
 
     if (admin) {
-      log("\n  First sign-in (shown once — save it):");
+      log("\n  First sign-in (shown once, save it):");
       log(`    Username: ${admin.username}`);
       log(`    Password: ${admin.password}\n`);
     }
@@ -268,7 +268,7 @@ async function restore(args) {
   const intoIdx = args.indexOf("--into");
   const target = intoIdx >= 0 ? args[intoIdx + 1] : `${cfg.database}_restore_${Date.now().toString(36)}`;
   const sql = zlib.gunzipSync(fs.readFileSync(file)).toString("utf8");
-  if (!sql.trimEnd().endsWith("-- end of backup")) throw new Error("This backup file is incomplete or damaged — refusing to restore it.");
+  if (!sql.trimEnd().endsWith("-- end of backup")) throw new Error("This backup file is incomplete or damaged, refusing to restore it.");
 
   const conn = await ownerConnection({ database: target });
   try {
@@ -306,7 +306,7 @@ if (!commands[command]) {
 commands[command]().catch((err) => {
   console.error("\n✗", err.code ? `${err.code}:` : "", err.message);
   if (["ETIMEDOUT", "ECONNREFUSED", "ENOTFOUND"].includes(err.code)) {
-    console.error("  Can't reach the database server — check the internet connection and that port 3306 is open.");
+    console.error("  Can't reach the database server, check the internet connection and that port 3306 is open.");
   }
   process.exit(1);
 });

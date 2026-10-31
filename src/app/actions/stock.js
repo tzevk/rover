@@ -14,10 +14,10 @@ import { num, text } from "@/lib/validate";
 const positiveOrZero = (v) => { const n = v === "" || v == null ? 0 : num(v); return n >= 0 ? n : NaN; };
 
 function readMaterial(formData) {
-  const unit = String(formData.get("unit") || "tonne");
+  const unit = String(formData.get("unit") || "piece");
   return {
     name: text(formData.get("name"), 80),
-    unit: UNITS.includes(unit) ? unit : "tonne",
+    unit: UNITS.includes(unit) ? unit : "piece",
     kgPerUnit: num(formData.get("kg_per_unit") || 1000),
     rate: positiveOrZero(formData.get("default_rate")),
     opening: positiveOrZero(formData.get("opening_stock")),
