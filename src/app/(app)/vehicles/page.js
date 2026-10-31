@@ -69,6 +69,7 @@ export default async function VehiclesPage() {
                   <label className="field"><span>{t("common.date")}</span><input className="input" type="date" name="log_date" defaultValue={today} max={today} required /></label>
                   <label className="field"><span>{t("vehicles.litres")}</span><input className="input num" type="number" name="litres" min="0.01" step="0.01" inputMode="decimal" required /></label>
                   <label className="field"><span>{t("common.amountRs")}</span><input className="input num" type="number" name="amount" min="0.01" step="0.01" inputMode="decimal" required /></label>
+                  <label className="field"><span>{t("cash.paidFrom")}</span><select className="select" name="paid_from" defaultValue="cash"><option value="cash">{t("pay.cash")}</option><option value="bank">{t("pay.bank")}</option></select></label>
                   <label className="field"><span>{t("vehicles.odometer")}</span><input className="input num" type="number" name="odometer_km" min="0" step="1" inputMode="numeric" /></label>
                 </div>
                 <div><SubmitButton className="btn btn-accent"><Save size={16} /> {t("vehicles.saveFuel")}</SubmitButton></div>
@@ -83,6 +84,7 @@ export default async function VehiclesPage() {
                   <label className="field"><span>{t("common.date")}</span><input className="input" type="date" name="log_date" defaultValue={today} max={today} required /></label>
                   <label className="field"><span>{t("vehicles.workDone")}</span><input className="input" name="description" required maxLength={200} /></label>
                   <label className="field"><span>{t("common.amountRs")}</span><input className="input num" type="number" name="amount" min="0.01" step="0.01" inputMode="decimal" required /></label>
+                  <label className="field"><span>{t("cash.paidFrom")}</span><select className="select" name="paid_from" defaultValue="cash"><option value="cash">{t("pay.cash")}</option><option value="bank">{t("pay.bank")}</option></select></label>
                   <label className="field"><span>{t("vehicles.nextDue")}</span><input className="input" type="date" name="next_due" /></label>
                 </div>
                 <div><SubmitButton className="btn btn-accent"><Save size={16} /> {t("vehicles.saveWork")}</SubmitButton></div>

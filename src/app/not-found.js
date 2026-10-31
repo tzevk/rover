@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Home, SearchX } from "lucide-react";
 import Logo from "@/components/Logo";
-import { getI18n } from "@/lib/i18n/server";
+import { getI18n, pageTitle } from "@/lib/i18n/server";
+
+export const generateMetadata = pageTitle("error.notFound");
 
 export default async function NotFound() {
   const { t } = await getI18n();

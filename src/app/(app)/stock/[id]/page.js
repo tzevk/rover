@@ -10,28 +10,31 @@ import { requireAdmin } from "@/lib/auth";
 import { getStock, query } from "@/lib/db";
 import { qty } from "@/lib/format";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
+import { currentSite } from "@/lib/sites";
 
 export const generateMetadata = pageTitle("nav.stock");
 
 export default async function MaterialPage({ params }) {
-  const { company_id: cid } = await requireAdmin();
+  const user = await requireAdmin();
+  const cid = user.company_id;
+  const site = await currentSite(user);
   const { t, fmtDate } = await getI18n();
   const id = Number((await params).id);
-  const m = (await getStock(cid)).find((x) => x.id === id);
+  const m = (await getStock(cid, site)).find((x) => x.id === id);
   if (!m) notFound();
 
   const moves = await query(
     `SELECT 'made' AS kind, prod_date AS at, qty AS change_qty, note, id AS sort_id FROM production_entries
-       WHERE company_id = ${cid} AND material_id = ? AND deleted_at IS NULL
+       WHERE company_id = ${cid} AND site_id = ${site.id} AND material_id = ? AND deleted_at IS NULL
      UNION ALL
      SELECT 'used', prod_date, -input_qty, note, id FROM production_entries
-       WHERE company_id = ${cid} AND input_material_id = ? AND deleted_at IS NULL
+       WHERE company_id = ${cid} AND site_id = ${site.id} AND input_material_id = ? AND deleted_at IS NULL
      UNION ALL
      SELECT 'sold', DATE(delivered_at), -delivered_qty, CONCAT('#', id), id FROM orders
-       WHERE company_id = ${cid} AND material_id = ? AND status = 'delivered'
+       WHERE company_id = ${cid} AND site_id = ${site.id} AND material_id = ? AND status = 'delivered'
      UNION ALL
      SELECT 'count', count_date, difference, note, id FROM stock_counts
-       WHERE company_id = ${cid} AND material_id = ?
+       WHERE company_id = ${cid} AND site_id = ${site.id} AND material_id = ?
      ORDER BY at DESC, sort_id DESC LIMIT 80`,
     [id, id, id, id],
   );

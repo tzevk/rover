@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { flash } from "@/lib/flash";
 import { guarded } from "@/lib/action";
 import { requireAdmin } from "@/lib/auth";
 import { invalidate, TAGS } from "@/lib/cache";
@@ -50,6 +51,7 @@ export const setUserActive = guarded("setUserActive", async (id, active) => {
     await audit(tx, me, active ? "user.enable" : "user.disable", "user", id);
   });
   invalidate(TAGS.users);
+  await flash(active ? "flash.userEnabled" : "flash.userDisabled");
   revalidatePath("/users");
 }, { inPage: true });
 

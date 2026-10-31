@@ -161,3 +161,16 @@
   .journey { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .demo-form .act { width: 100%; }
 }
+
+/* Phone menu */
+.site-menu-btn { display: none; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; margin-right: -10px; background: none; border: 0; color: inherit; cursor: pointer; }
+.site-menu { position: absolute; inset: 100% 0 auto; display: grid; padding: 6px 16px 14px; background: var(--graphite); border-bottom: 1px solid var(--line); }
+.site-menu a { display: block; padding: 14px 4px; font-size: 17px; border-bottom: 1px solid var(--line); }
+.site-menu a:last-child { border-bottom: 0; color: var(--amber); }
+.contact-links a { text-decoration: underline; }
+@media (max-width: 800px) {
+  .site-menu-btn { display: inline-flex; }
+}
+@media (min-width: 801px) {
+  .site-menu { display: none; }
+}

@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { qty, shiftDate, todayISO } from "@/lib/format";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
+import { currentSite } from "@/lib/sites";
 import { isDate } from "@/lib/validate";
 
 export const generateMetadata = pageTitle("nav.production");
@@ -16,6 +17,7 @@ export const generateMetadata = pageTitle("nav.production");
 export default async function ProductionPage({ searchParams }) {
   const user = await requireUser();
   const cid = user.company_id;
+  const site = await currentSite(user);
   const { t, fmtDate } = await getI18n();
   const sp = await searchParams;
   const today = todayISO();
@@ -31,7 +33,7 @@ export default async function ProductionPage({ searchParams }) {
        JOIN materials m ON m.id = e.material_id
        LEFT JOIN materials i ON i.id = e.input_material_id
        LEFT JOIN users u ON u.id = e.created_by
-       WHERE e.company_id = ${cid} AND e.deleted_at IS NULL AND e.prod_date BETWEEN ? AND ?
+       WHERE e.company_id = ${cid} AND e.site_id = ${site.id} AND e.deleted_at IS NULL AND e.prod_date BETWEEN ? AND ?
        ORDER BY e.prod_date DESC, e.id DESC LIMIT 200`,
       [from, to],
     ),

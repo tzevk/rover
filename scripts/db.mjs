@@ -8,6 +8,7 @@
 //
 // migrate/restore need the database OWNER login (asked for, or DB_OWNER_USER / DB_OWNER_PASSWORD).
 // The app itself runs with a separate, restricted login that can never delete or drop data.
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
@@ -156,7 +157,21 @@ async function seedAdmin(conn) {
   return login;
 }
 
+// Migrate applies whatever is in the folder. Work in progress reaching a live server would run
+// against code that isn't deployed yet, and can stop that code saving, so only committed files go.
+function refuseUncommitted() {
+  if (["127.0.0.1", "localhost"].includes(cfg.host)) return;
+  let changes;
+  try {
+    changes = execFileSync("git", ["status", "--porcelain", "db/migrations"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return; // not a git checkout, e.g. an installed copy
+  }
+  if (changes) throw new Error(`These migrations aren't committed yet, so they can't go to ${cfg.host}:\n${changes}\n  Finish and commit them first.`);
+}
+
 async function migrate() {
+  refuseUncommitted();
   log(`\n▸ Migrating ${cfg.database}\n`);
   const conn = await ownerConnection();
   try {

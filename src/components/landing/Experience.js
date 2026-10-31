@@ -8,7 +8,10 @@ import Lenis from "lenis";
 
 const Scene = dynamic(() => import("./Scene"), { ssr: false }); // only downloaded if it will run
 
+// A slow or metered connection, or a low-memory phone, keeps the still background instead.
 function canRender3D() {
+  const net = navigator.connection;
+  if (net?.saveData || /(^|-)[23]g$/.test(net?.effectiveType ?? "") || navigator.deviceMemory < 3) return false;
   try { return Boolean(document.createElement("canvas").getContext("webgl2")); } catch { return false; }
 }
 

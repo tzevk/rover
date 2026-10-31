@@ -3,8 +3,10 @@ import { clientIp } from "@/lib/client-ip";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
 // Paths only the Admin may open (pages re-check this on the server too).
-const ADMIN_ONLY = ["/alerts", "/company", "/api/export", "/enquiries", "/orders", "/customers", "/staff", "/payroll", "/accounts", "/users", "/activity"];
+const ADMIN_ONLY = ["/alerts", "/company", "/api/export", "/enquiries", "/orders", "/customers", "/staff", "/payroll", "/accounts", "/users", "/activity", "/cash", "/invoices", "/gst", "/royalty", "/tally", "/sites"];
 const WORKER_ALLOWED = ["/orders/new"];
+// Gate staff hand over the invoice for a load they've just sent out; the page limits them to today's.
+const WORKER_PREFIXES = ["/invoices/"];
 
 // Redirect on the host the browser used, honouring a reverse proxy's X-Forwarded-* headers, so the
 // session cookie always travels with the redirect.
@@ -30,8 +32,15 @@ function overLimit(key, max) {
   return ++rec.count > max;
 }
 
+// Addresses that need a login. Anything else that isn't public is simply a page that doesn't exist,
+// so it gets a real 404. Every app page checks the login itself as well.
+const APP_PATHS = ["/orders", "/deliveries", "/expenses", "/attendance", "/production", "/stock", "/vehicles", "/alerts", "/customers", "/accounts", "/payroll", "/staff", "/users", "/activity", "/company", "/billing", "/enquiries", "/cash", "/invoices", "/gst", "/royalty", "/tally", "/sites", "/api"];
+const needsLogin = (pathname) => APP_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
 const SEO_PAGES = ["/quarry-management-software", "/stone-crusher-management-software", "/aggregate-inventory-management", "/weighbridge-management-software", "/quarry-dispatch-management"];
-const PUBLIC = ["/login", "/signup", "/terms", "/privacy", "/api/health", "/api/billing/webhook"];
+// /gate holds no data of its own: it's the shell that works offline. Its API routes check the login
+// themselves, so a device can be told "sign in again" instead of being redirected to a web page.
+const PUBLIC = ["/login", "/signup", "/terms", "/privacy", "/gate", "/api/health", "/api/billing/webhook", "/api/offline/snapshot", "/api/offline/sync"];
 
 function pageLang(req, lang) {
   const headers = new Headers(req.headers);
@@ -66,6 +75,7 @@ export async function proxy(req) {
   if (!session && pathname === "/") {
     return NextResponse.rewrite(new URL("/welcome", req.url), { request: { headers: pageLang(req, "en") } });
   }
+  if (!session && !needsLogin(pathname)) return NextResponse.next({ request: { headers: pageLang(req, "en") } });
   if (!session) {
     const res = redirectTo(req, "/login");
     res.cookies.delete(SESSION_COOKIE);
@@ -73,7 +83,7 @@ export async function proxy(req) {
   }
   const adminOnly =
     ADMIN_ONLY.some((p) => pathname === p || pathname.startsWith(`${p}/`)) &&
-    !WORKER_ALLOWED.includes(pathname);
+    !WORKER_ALLOWED.includes(pathname) && !WORKER_PREFIXES.some((p) => pathname.startsWith(p));
   if (adminOnly && session.role !== "admin") {
     return redirectTo(req, "/");
   }
@@ -81,5 +91,5 @@ export async function proxy(req) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/|favicon.ico|icon.svg|manifest.webmanifest|robots.txt|sitemap.xml|opengraph-image|.*\\.(?:png|jpg|svg|ico|webp)$).*)"],
+  matcher: ["/((?!_next/|favicon.ico|icon.svg|sw.js|manifest.webmanifest|robots.txt|sitemap.xml|opengraph-image|.*\\.(?:png|jpg|svg|ico|webp)$).*)"],
 };

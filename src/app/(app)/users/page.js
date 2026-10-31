@@ -4,16 +4,19 @@ import ConfirmButton from "@/components/ConfirmButton";
 import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import SubmitButton from "@/components/SubmitButton";
 import { createUser, resetPassword, setUserActive } from "@/app/actions/users";
+import { setUserSite } from "@/app/actions/sites";
 import { requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
+import { getSites } from "@/lib/sites";
 
 export const generateMetadata = pageTitle("nav.users");
 
 export default async function UsersPage() {
   const me = await requireAdmin();
   const { t, fmtDate } = await getI18n();
-  const users = await query(`SELECT id, username, full_name, role, active, created_at FROM users WHERE company_id = ${me.company_id} ORDER BY role, full_name`);
+  const sites = (await getSites(me.company_id)).filter((s) => s.active);
+  const users = await query(`SELECT id, site_id, username, full_name, role, active, created_at FROM users WHERE company_id = ${me.company_id} ORDER BY role, full_name`);
 
   return (
     <>
@@ -78,6 +81,16 @@ export default async function UsersPage() {
                     )}
                   </td>
                   <td>
+                    {sites.length > 1 && (
+                      <ActionForm action={setUserSite} className="row">
+                        <input type="hidden" name="user_id" value={u.id} />
+                        <select className="select input-sm" name="site_id" defaultValue={u.site_id ?? ""} aria-label={t("sites.site")}>
+                          <option value="">{t("sites.anySite")}</option>
+                          {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <SubmitButton className="btn btn-sm">{t("action.save")}</SubmitButton>
+                      </ActionForm>
+                    )}
                     <ActionForm action={resetPassword} className="row" resetOnSuccess>
                       <input type="hidden" name="id" value={u.id} />
                       <input className="input input-sm" name="password" type="password" placeholder={t("users.newPassword")} minLength={8} required autoComplete="new-password" style={{ width: 160 }} />

@@ -66,10 +66,18 @@ async function main() {
   const mysqld = findMysqld();
   const basedir = path.resolve(path.dirname(mysqld), "..");
   const dbPort = await freePort();
-  execFileSync(mysqld, ["--initialize-insecure", `--datadir=${tmp}/data`, `--basedir=${basedir}`], { stdio: "pipe" });
+  // Production runs MariaDB: MYSQLD=/opt/homebrew/opt/mariadb@10.11/bin/mariadbd npm test
+  const mariadb = path.basename(mysqld) === "mariadbd";
+  if (mariadb) {
+    execFileSync(`${basedir}/bin/mariadb-install-db`, ["--no-defaults", `--datadir=${tmp}/data`, `--basedir=${basedir}`,
+      "--auth-root-authentication-method=normal", "--skip-test-db"], { stdio: "pipe" });
+  } else {
+    execFileSync(mysqld, ["--initialize-insecure", `--datadir=${tmp}/data`, `--basedir=${basedir}`], { stdio: "pipe" });
+  }
   const db = spawn(mysqld, [
+    ...(mariadb ? ["--no-defaults"] : []),
     `--datadir=${tmp}/data`, `--basedir=${basedir}`, `--port=${dbPort}`, `--socket=${tmp}/sock`,
-    "--bind-address=127.0.0.1", "--mysqlx=OFF",
+    "--bind-address=127.0.0.1", ...(mariadb ? [] : ["--mysqlx=OFF"]),
   ], { stdio: "ignore" });
   children.push(db);
   const rootConn = await waitFor(
@@ -101,6 +109,8 @@ async function main() {
     host: "127.0.0.1", port: dbPort, user: appEnv.DB_USER, password: appEnv.DB_PASSWORD, database: DB, dateStrings: true,
   });
 
+  const [[{ mainSite }]] = await appConn.query("SELECT MIN(id) AS mainSite FROM sites WHERE company_id = 1");
+
   // ── 3. Database-level guarantees (attacking with the app's own login)
   console.log("▸ Database guarantees");
   await rejects(appConn.query("DELETE FROM users"), "app login cannot DELETE data");
@@ -111,16 +121,20 @@ async function main() {
   await rejects(appConn.query("DELETE FROM audit_log"), "activity log cannot be erased");
   await appConn.query("INSERT INTO customers (company_id, name) VALUES (1, 'Rule Test')");
   const [[{ cid }]] = await appConn.query("SELECT id AS cid FROM customers WHERE name = 'Rule Test'");
-  await rejects(appConn.query("INSERT INTO orders (company_id, customer_id, ordered_qty, rate, total_amount) VALUES (1, ?, 10, 100, 999)", [cid]),
+  await rejects(appConn.query("INSERT INTO orders (company_id, customer_id, ordered_qty, rate, total_amount) VALUES (1, ?, 10, 100, 1000)", [cid]),
+    "an order can't be saved without a site");
+  await rejects(appConn.query("INSERT INTO orders (company_id, site_id, customer_id, ordered_qty, rate, total_amount) VALUES (1, ?, ?, 10, 100, 999)", [mainSite, cid]),
     "database rejects a total that isn't qty × rate");
-  await rejects(appConn.query("INSERT INTO orders (company_id, customer_id, ordered_qty, rate, total_amount) VALUES (1, ?, -1, 100, -100)", [cid]),
+  await rejects(appConn.query("INSERT INTO orders (company_id, site_id, customer_id, ordered_qty, rate, total_amount) VALUES (1, ?, ?, -1, 100, -100)", [mainSite, cid]),
     "database rejects negative quantities");
   await rejects(appConn.query(
-    "INSERT INTO orders (company_id, customer_id, ordered_qty, rate, total_amount, status) VALUES (1, ?, 1, 100, 100, 'delivered')", [cid]),
+    "INSERT INTO orders (company_id, site_id, customer_id, ordered_qty, rate, total_amount, status) VALUES (1, ?, ?, 1, 100, 100, 'delivered')", [mainSite, cid]),
     "database rejects a 'delivered' order with no vehicle, times or payment");
-  await rejects(appConn.query("INSERT INTO expenses (company_id, expense_date, category, amount) VALUES (1, '2026-01-01', 'fuel', 0)"),
+  await rejects(appConn.query("INSERT INTO orders (company_id, site_id, customer_id, ordered_qty, rate, total_amount, tax_amount) VALUES (1, ?, ?, 10, 100, 1000, 50)", [mainSite, cid]),
+    "database rejects tax that isn't in the total");
+  await rejects(appConn.query("INSERT INTO expenses (company_id, site_id, expense_date, category, amount) VALUES (1, ?, '2026-01-01', 'fuel', 0)", [mainSite]),
     "database rejects zero/negative expenses");
-  await rejects(appConn.query("INSERT INTO expenses (company_id, expense_date, category, amount) VALUES (1, '2026-01-01', 'bribes', 10)"),
+  await rejects(appConn.query("INSERT INTO expenses (company_id, site_id, expense_date, category, amount) VALUES (1, ?, '2026-01-01', 'bribes', 10)", [mainSite]),
     "database rejects unknown expense types");
 
   // ── 4. Build and start the app against the test database
@@ -131,14 +145,19 @@ async function main() {
   if (process.env.KEEP_ON_FAIL || process.env.KEEP_SERVERS) console.log(`  app: http://localhost:${appPort}  db port: ${dbPort}`);
   // "localhost", not 127.0.0.1: Next.js rewrites 127.0.0.1 to localhost in redirects, which would drop cookies.
   const BASE = `http://localhost:${appPort}`;
-  const app = spawn(process.execPath, [`${root}/node_modules/next/dist/bin/next`, "start", "-p", String(appPort)], {
-    cwd: root, env: { ...process.env, ...appEnv, NODE_ENV: "production", NEXT_DIST_DIR: ".next-test", HEALTH_DETAILS: "1", PLAN_PRICE_INR: "1000", RAZORPAY_WEBHOOK_SECRET: WEBHOOK_SECRET, SIGNUP_ENABLED: "1" },
-    stdio: ["ignore", fs.openSync(`${tmp}/app.log`, "a"), fs.openSync(`${tmp}/app.log`, "a")],
-  });
-  children.push(app);
-  await waitFor(async () => { const r = await fetch(`${BASE}/api/health`); if (!r.ok) throw new Error(r.status); }, "App");
+  let app;
+  const startApp = async () => {
+    app = spawn(process.execPath, [`${root}/node_modules/next/dist/bin/next`, "start", "-p", String(appPort)], {
+      cwd: root, env: { ...process.env, ...appEnv, NODE_ENV: "production", NEXT_DIST_DIR: ".next-test", HEALTH_DETAILS: "1", PLAN_PRICE_INR: "1000", RAZORPAY_WEBHOOK_SECRET: WEBHOOK_SECRET, SIGNUP_ENABLED: "1", CONTACT_PHONE: "919876543210", CONTACT_EMAIL: "hello@example.in" },
+      stdio: ["ignore", fs.openSync(`${tmp}/app.log`, "a"), fs.openSync(`${tmp}/app.log`, "a")],
+    });
+    children.push(app);
+    await waitFor(async () => { const r = await fetch(`${BASE}/api/health`); if (!r.ok) throw new Error(r.status); }, "App");
+  };
+  const stopApp = () => new Promise((resolve) => { app.once("exit", resolve); app.kill(); });
+  await startApp();
   const health = await (await fetch(`${BASE}/api/health`)).json();
-  check(health.status === "ok" && health.schema === "006_operations.sql", "health check reports app + database up");
+  check(health.status === "ok" && health.schema === "011_tally_offline.sql", "health check reports app + database up");
   const loginPage = await fetch(`${BASE}/login`);
   check(loginPage.headers.get("content-security-policy")?.includes("frame-ancestors 'none'") && loginPage.headers.get("x-content-type-options") === "nosniff"
     && loginPage.headers.get("strict-transport-security") && !loginPage.headers.get("x-powered-by"), "security headers are sent and the framework is not advertised");
@@ -493,8 +512,8 @@ async function main() {
     await rootConn.query(`UPDATE ${DB}.orders SET booked_at = NOW() - INTERVAL 5 DAY WHERE id = ?`, [scaleId]);
     await rootConn.query(`UPDATE ${DB}.orders SET delivered_at = delivered_at - INTERVAL 40 DAY WHERE status = 'delivered' AND balance_amount > 0`);
     await rootConn.query(`UPDATE ${DB}.customer_payments SET paid_on = paid_on - INTERVAL 40 DAY`);
-    for (const amount of [100, 110, 120, 130, 140]) await rootConn.query(`INSERT INTO ${DB}.expenses (company_id, expense_date, category, amount) VALUES (1, CURDATE() - INTERVAL 20 DAY, 'other', ?)`, [amount]);
-    await rootConn.query(`INSERT INTO ${DB}.expenses (company_id, expense_date, category, amount) VALUES (1, CURDATE(), 'other', 9000)`);
+    for (const amount of [100, 110, 120, 130, 140]) await rootConn.query(`INSERT INTO ${DB}.expenses (company_id, site_id, expense_date, category, amount) VALUES (1, ${mainSite}, CURDATE() - INTERVAL 20 DAY, 'other', ?)`, [amount]);
+    await rootConn.query(`INSERT INTO ${DB}.expenses (company_id, site_id, expense_date, category, amount) VALUES (1, ${mainSite}, CURDATE(), 'other', 9000)`);
     const [[{ matId }]] = await appConn.query("SELECT id AS matId FROM materials WHERE name = 'Grade-A Metal'");
     await admin.goto(`${BASE}/customers/${firstCustomerId(await appConn.query("SELECT id FROM customers WHERE name = 'Shree Builders'"))}`);
     await admin.fill('input[name="credit_limit"]', "100");
@@ -556,6 +575,504 @@ async function main() {
       console.log(`  · ${p} ${Math.round(performance.now() - started)} ms`);
     }
 
+
+    console.log("▸ GST invoices");
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    const [[{ metalId }]] = await appConn.query("SELECT id AS metalId FROM materials WHERE name = 'Grade-A Metal' AND company_id = 1");
+    const orderFor = async (customerId, qty, rate, { material = metalId, site = mainSite } = {}) => {
+      const [res] = await appConn.query(
+        "INSERT INTO orders (company_id, site_id, customer_id, material_id, ordered_qty, rate, total_amount, booked_by) VALUES (1, ?, ?, ?, ?, ?, ROUND(? * ?, 2), 1)",
+        [site, customerId, material, qty, rate, qty, rate],
+      );
+      return res.insertId;
+    };
+    const deliver = async (page, id, { vehicle = "MH 12 GS 1000", paid = "", mode = "cash", pass = "", error } = {}) => {
+      await page.goto(`${BASE}/deliveries/${id}`);
+      await page.fill('input[name="vehicle_number"]', vehicle);
+      if (paid) await page.fill('input[name="paid_amount"]', paid);
+      await page.selectOption('select[name="paid_mode"]', mode);
+      if (pass) await page.fill('input[name="pass_no"]', pass);
+      await page.click("text=Complete delivery");
+      if (error) return seen(page, `.alert-error:has-text("${error}")`);
+      await page.waitForURL(/deliveries\?done=/);
+      return true;
+    };
+    const saveCompanyForm = async (message = "Saved.") => {
+      await admin.click('form:has(input[name="gst_enabled"]) button:has-text("Save")');
+      return seen(admin, `.alert:has-text("${message}")`);
+    };
+    const invoiceOf = async (orderId) => (await appConn.query("SELECT * FROM invoices WHERE order_id = ? ORDER BY id DESC LIMIT 1", [orderId]))[0][0];
+    const customerNamed = async (name, gstin = null, state = null) => {
+      const [res] = await appConn.query("INSERT INTO customers (company_id, name, gstin, state_code) VALUES (1, ?, ?, ?)", [name, gstin, state]);
+      return res.insertId;
+    };
+
+    await admin.goto(`${BASE}/company`);
+    await admin.fill('input[name="address"]', "Gat 12, Quarry Road");
+    await admin.fill('input[name="place"]', "Pune");
+    await admin.fill('input[name="pincode"]', "411001");
+    await admin.fill('input[name="invoice_prefix"]', "rk");
+    await admin.fill('form:has(input[name="gst_enabled"]) input[name="gstin"]', "");
+    await admin.check('input[name="gst_enabled"]');
+    check(await saveCompanyForm("Add a valid GSTIN"), "GST can't be switched on without a GSTIN");
+    await admin.fill('form:has(input[name="gst_enabled"]) input[name="gstin"]', "27AAPFU0939F1ZA");
+    check(await saveCompanyForm("valid 15-character GSTIN"), "a mistyped GSTIN is caught by its check digit");
+    await admin.fill('form:has(input[name="gst_enabled"]) input[name="gstin"]', "27AAPFU0939F1ZV");
+    check(await saveCompanyForm(), "a valid GSTIN and address switch GST on");
+
+    const local = await customerNamed("Sahyadri Builders", "27AABCS1429B1Z1", "27");
+    await admin.goto(`${BASE}/customers/${local}`);
+    await admin.fill('form:has(input[name="credit_limit"]) input[name="gstin"]', "27AAPFU0939F1ZA");
+    await admin.click("text=Save details");
+    check(await seen(admin, '.alert-error:has-text("valid 15-character GSTIN")'), "a customer's mistyped GSTIN is refused too");
+    await appConn.query("UPDATE customers SET gstin = '27AAPFU0939F1ZV', address = '5 MG Road', place = 'Pune', pincode = '411002' WHERE id = ?", [local]);
+
+    const firstBill = await orderFor(local, 10, 1000);
+    await admin.goto(`${BASE}/deliveries/${firstBill}`);
+    await admin.fill('input[name="vehicle_number"]', "MH 12 GS 1000");
+    check((await admin.locator(".calc").innerText()).includes("10,500"), "the delivery form shows the total with GST before saving");
+    await deliver(admin, firstBill, { paid: "500" });
+    check(/invoice=\d+/.test(admin.url()) && await seen(admin, "text=Print invoice"), "completing a delivery issues an invoice and offers it to print");
+    let inv = await invoiceOf(firstBill);
+    check(/^RK\/\d\d-\d\d\/00001$/.test(inv.number) && inv.number.length <= 16, "invoice numbers start at 1 for the year and stay within 16 characters");
+    check(Number(inv.taxable_value) === 10000 && Number(inv.cgst) === 250 && Number(inv.sgst) === 250 && Number(inv.igst) === 0 && Number(inv.total) === 10500, "a sale within the State splits into CGST and SGST");
+    const [[billed]] = await appConn.query("SELECT total_amount, tax_amount, balance_amount FROM orders WHERE id = ?", [firstBill]);
+    check(Number(billed.total_amount) === 10500 && Number(billed.tax_amount) === 500 && Number(billed.balance_amount) === 10000, "the customer owes the amount including GST, less what they paid");
+
+    await admin.goto(`${BASE}/invoices/${inv.id}`);
+    const printed = await admin.locator(".invoice").innerText();
+    check(["TAX INVOICE", "27AAPFU0939F1ZV", "2517", "CGST @ 2.5%", "SGST @ 2.5%", "Maharashtra (27)", "Rupees Ten Thousand Five Hundred Only", "Reverse charge"].every((x) => printed.includes(x)), "the printed invoice carries what a tax invoice must show");
+
+    const farAway = await customerNamed("Bengaluru Infra", "29AAGCB7383J1Z4", "29");
+    const interBill = await orderFor(farAway, 100, 600);
+    await deliver(admin, interBill);
+    const inter = await invoiceOf(interBill);
+    check(Number(inter.igst) === 3000 && Number(inter.cgst) === 0 && inter.place_of_supply === "29", "a sale to another State is charged IGST instead");
+    await appConn.query("UPDATE customers SET name = 'Renamed Later', gstin = NULL WHERE id = ?", [farAway]);
+    await admin.goto(`${BASE}/invoices/${inter.id}`);
+    check((await admin.locator(".invoice").innerText()).includes("Bengaluru Infra"), "changing a customer later doesn't rewrite an issued invoice");
+
+    await admin.goto(`${BASE}/company`);
+    await admin.check('input[name="rates_include_gst"]');
+    await saveCompanyForm();
+    const inclusive = await orderFor(local, 1, 1050);
+    await deliver(admin, inclusive);
+    const incl = await invoiceOf(inclusive);
+    check(Number(incl.total) === 1050 && Number(incl.taxable_value) === 1000 && Number(incl.cgst) === 25, "with inclusive rates the tax comes out of the price, not on top");
+    await admin.goto(`${BASE}/company`);
+    await admin.uncheck('input[name="rates_include_gst"]');
+    await saveCompanyForm();
+
+    await rejects(appConn.query(
+      `INSERT INTO invoices (company_id, site_id, order_id, customer_id, number, fy, invoice_date, supplier_name, supplier_gstin, buyer_name, place_of_supply, item_name, hsn_code, qty, unit, uqc, rate, taxable_value, gst_rate, cgst, sgst, total)
+       VALUES (1, ?, ?, ?, 'X/1', '2026-27', '2026-10-01', 'A', '27AAPFU0939F1ZV', 'B', '27', 'C', '2517', 1, 't', 'MTS', 100, 100, 5, 2.5, 2.5, 999)`, [mainSite, firstBill, local]),
+      "database rejects an invoice whose total doesn't add up");
+    await rejects(appConn.query("UPDATE invoices SET sgst = sgst + 1, total = total + 1 WHERE id = ?", [inv.id]), "database rejects unequal CGST and SGST");
+    await rejects(appConn.query("DELETE FROM invoices WHERE id = ?", [inv.id]), "app login can't delete an invoice");
+
+    const redo = await orderFor(local, 2, 1000);
+    await deliver(admin, redo);
+    const firstCopy = await invoiceOf(redo);
+    admin.once("dialog", (d) => d.accept());
+    await admin.goto(`${BASE}/deliveries/${redo}`);
+    check((await admin.locator("body").innerText()).includes(`Invoice ${firstCopy.number} will be cancelled`), "reopening warns which invoice will be cancelled");
+    await admin.click("text=Reopen delivery");
+    await admin.waitForSelector('input[name="vehicle_number"]');
+    const voided = await invoiceOf(redo);
+    check(voided.status === "cancelled" && voided.number === firstCopy.number, "reopening a delivery cancels its invoice but keeps the number");
+    const [[reopened]] = await appConn.query("SELECT total_amount, tax_amount FROM orders WHERE id = ?", [redo]);
+    check(Number(reopened.total_amount) === 2000 && Number(reopened.tax_amount) === 0, "…and the order goes back to its plain booking value");
+    await deliver(admin, redo);
+    const again = await invoiceOf(redo);
+    check(again.number !== firstCopy.number && Number(again.number.slice(-5)) === Number(firstCopy.number.slice(-5)) + 1, "delivering it again takes the next number, leaving no gap");
+
+    const month = today.slice(0, 7);
+    await admin.goto(`${BASE}/gst?month=${month}`);
+    check(await seen(admin, ".stat:has-text('IGST')"), "the GST page totals the month");
+    const sheet = async (kind) => (await adminCtx.request.get(`${BASE}/api/export/gst?month=${month}&kind=${kind}`)).text();
+    const b2b = await sheet("b2b");
+    check(b2b.includes("27AAPFU0939F1ZV") && b2b.includes(inv.number), "registered buyers are listed invoice by invoice");
+    const docs = await sheet("docs");
+    check(docs.includes(",1,") || /,1\r?\n/.test(docs), "cancelled numbers are counted on the documents sheet");
+    check((await sheet("hsn")).includes("2517"), "sales are summarised by HSN code");
+    check((await adminCtx.request.get(`${BASE}/api/export/gst?month=bad&kind=hsn`)).status() === 400, "a malformed month is refused");
+
+    console.log("▸ E-way bills");
+    const heavy = await orderFor(local, 100, 1000);
+    await deliver(admin, heavy, { vehicle: "MH 12 EW 7788" });
+    const bill = await invoiceOf(heavy);
+    await admin.goto(`${BASE}/invoices/${bill.id}`);
+    check(await seen(admin, "text=needs an e-way bill"), "a load over the limit is marked as needing an e-way bill");
+    await appConn.query("UPDATE invoices SET buyer_pincode = NULL, buyer_place = NULL WHERE id = ?", [bill.id]);
+    await admin.reload();
+    check(await seen(admin, "text=Still needed for the portal"), "the page says what's missing before a file can be made");
+    check((await adminCtx.request.get(`${BASE}/api/export/ewaybill?id=${bill.id}`)).status() === 404, "an incomplete invoice gets no file");
+    await admin.fill('input[name="buyer_place"]', "Pune");
+    await admin.fill('input[name="buyer_pincode"]', "12");
+    await admin.fill('input[name="distance_km"]', "35");
+    await admin.click('form:has(input[name="distance_km"]) button:has-text("Save")');
+    check(await seen(admin, ".alert-error:has-text('6-digit pincode')"), "a bad pincode is refused");
+    await admin.fill('input[name="buyer_pincode"]', "411002");
+    await admin.click('form:has(input[name="distance_km"]) button:has-text("Save")');
+    await admin.waitForSelector('.alert-ok:has-text("Saved.")');
+    const ewayFile = await (await adminCtx.request.get(`${BASE}/api/export/ewaybill?id=${bill.id}`)).json();
+    const ew = ewayFile.billLists[0];
+    check(ewayFile.version && ew.userGstin === "27AAPFU0939F1ZV" && ew.supplyType === "O" && ew.subSupplyType === 1 && ew.docType === "INV" && ew.transType === 1, "the file uses the portal's upload format");
+    check(/^\d\d\/\d\d\/\d{4}$/.test(ew.docDate) && ew.vehicleNo === "MH12EW7788" && ew.transDistance === 35 && ew.fromPincode === 411001 && ew.toPincode === 411002, "dates, vehicle and pincodes are in the form the portal expects");
+    check("actualFromStateCode" in ew && "actualToStateCode" in ew && "OthValue" in ew && "TotNonAdvolVal" in ew && !("actFromStateCode" in ew), "field names match the upload format, not the API's");
+    check(ew.totInvValue === 105000 && ew.cgstValue === 2500 && ew.itemList[0].hsnCode === 2517 && ew.itemList[0].qtyUnit === "MTS" && ew.itemList[0].cgstRate === 2.5, "the amounts and item line match the invoice");
+    await admin.reload();
+    await admin.fill('input[name="ewb_no"]', "12345");
+    await admin.click("text=Save e-way bill");
+    check(await seen(admin, ".alert-error:has-text('12 digits')"), "an e-way bill number must have 12 digits");
+    await admin.goto(`${BASE}/alerts`);
+    check(await seen(admin, `text=Invoice ${bill.number}`), "a load with no e-way bill number is flagged");
+    await admin.goto(`${BASE}/invoices/${bill.id}`);
+    await admin.fill('input[name="ewb_no"]', "351234567890");
+    await admin.click("text=Save e-way bill");
+    await admin.waitForSelector('.alert-ok:has-text("Saved.")');
+    await admin.reload();
+    check((await admin.locator(".invoice").innerText()).includes("351234567890"), "the e-way bill number prints on the invoice");
+
+    console.log("▸ Sites");
+    check(await admin.locator(".side-site").count() === 0, "a company with one site never sees a site chooser");
+    await admin.goto(`${BASE}/sites`);
+    await admin.fill('form:has(button:has-text("Add site")) input[name="name"]', "Hill Site");
+    await admin.fill('form:has(button:has-text("Add site")) input[name="place"]', "Wai");
+    await admin.click('button:has-text("Add site")');
+    await admin.waitForSelector(".alert-ok:has-text('Added Hill Site')");
+    const [[{ hill }]] = await appConn.query("SELECT id AS hill FROM sites WHERE name = 'Hill Site'");
+    await admin.goto(`${BASE}/stock`);
+    await admin.waitForSelector(".side-site select");
+    await admin.selectOption(".side-site select", { label: "Hill Site" });
+    await admin.waitForFunction(() => document.cookie.includes("rq_site="), null, { timeout: 5000 });
+    await admin.goto(`${BASE}/stock`);
+    const stockRow = () => admin.locator('tr:has-text("Grade-A Metal") td').nth(1).innerText();
+    check((await stockRow()).startsWith("0 "), "a new site starts with no stock of its own");
+    await admin.goto(`${BASE}/production`);
+    await admin.selectOption('select[name="material_id"]', { label: "Grade-A Metal" });
+    await admin.fill('input[name="qty"]', "40");
+    await admin.click("text=Save production");
+    await admin.waitForSelector(".alert-ok");
+    await admin.goto(`${BASE}/stock`);
+    check((await stockRow()).startsWith("40 "), "production at a site adds to that site's stock");
+    const [[hillMade]] = await appConn.query("SELECT site_id FROM production_entries ORDER BY id DESC LIMIT 1");
+    check(hillMade.site_id === hill, "records are stamped with the site they were made at");
+    const hillCustomer = await customerNamed("Wai Contractors");
+    const hillOrder = await orderFor(hillCustomer, 5, 1000, { site: hill });
+    await admin.goto(`${BASE}/deliveries`);
+    check(await seen(admin, "text=Wai Contractors"), "a site's deliveries list shows its own orders");
+    await admin.selectOption(".side-site select", { label: "Main site" });
+    await admin.waitForFunction(() => !document.body.innerText.includes("Wai Contractors"), null, { timeout: 5000 }).catch(() => {});
+    await admin.goto(`${BASE}/deliveries`);
+    await admin.waitForSelector("h1:has-text('Deliveries')");
+    check(!(await admin.locator("body").innerText()).includes("Wai Contractors"), "…and the other site's list doesn't");
+    await deliver(admin, hillOrder, { paid: "1000" });
+    await admin.goto(`${BASE}/sites`);
+    const compare = await admin.locator('section:has(h2:has-text("Side by side")), .card:has-text("Side by side")').first().innerText();
+    check(compare.includes("Hill Site") && compare.includes("Main site"), "the sites page compares sites side by side");
+    check(await seen(admin, 'tr:has-text("Hill Site") td:has-text("₹5,250")'), "each site shows its own sales");
+    await admin.goto(`${BASE}/users`);
+    const pinForm = admin.locator('tr:has-text("ramesh") form:has(select[name="site_id"])');
+    await pinForm.locator("select").selectOption({ label: "Main site" });
+    await pinForm.locator("button").click();
+    await seen(admin, ".alert-ok:has-text('Saved.')");
+    await workerCtx.addCookies([{ name: "rq_site", value: String(hill), url: BASE }]);
+    await worker.goto(`${BASE}/deliveries`);
+    await worker.waitForSelector("h1:has-text('Deliveries')");
+    check(!(await worker.locator("body").innerText()).includes("Wai Contractors"), "a login pinned to a site can't reach another by changing a cookie");
+    const [foreign] = await rootConn.query(`INSERT INTO ${DB}.companies (name) VALUES ('Rival Quarries')`);
+    const [foreignSite] = await rootConn.query(`INSERT INTO ${DB}.sites (company_id, name) VALUES (?, 'Rival Pit')`, [foreign.insertId]);
+    await adminCtx.addCookies([{ name: "rq_site", value: String(foreignSite.insertId), url: BASE }]);
+    await admin.goto(`${BASE}/cash`);
+    check(await seen(admin, '.page-eyebrow:has-text("Main site")'), "another company's site can't be chosen by forging a cookie");
+    await admin.goto(`${BASE}/sites`);
+    await admin.locator("details.site-edit").nth(1).locator("summary").click();
+    await admin.locator("details.site-edit").nth(0).locator("summary").click();
+    await admin.locator("details.site-edit").nth(0).locator('input[name="active"]').uncheck();
+    await admin.locator("details.site-edit").nth(0).locator("button").click();
+    await seen(admin, ".alert-ok");
+    await admin.reload();
+    await admin.locator("details.site-edit").nth(0).locator("summary").click();
+    const lastSite = admin.locator("details.site-edit").nth(0);
+    await lastSite.locator('input[name="active"]').uncheck();
+    await lastSite.locator("button").click();
+    check(await seen(admin, ".alert-error:has-text('at least one active site')"), "the last active site can't be switched off");
+    await admin.reload();
+    const sleeping = admin.locator("details.site-edit").last();
+    await sleeping.locator("summary").click();
+    await sleeping.locator('input[name="active"]').check();
+    await sleeping.locator("button").click();
+    await waitFor(async () => {
+      const [[{ asleep }]] = await appConn.query("SELECT COUNT(*) AS asleep FROM sites WHERE company_id = 1 AND active = 0");
+      if (asleep) throw new Error("site still inactive");
+    }, "Site reactivation", 5000);
+    await rootConn.query(`UPDATE ${DB}.companies SET gst_enabled = 0 WHERE id = 1`);
+
+    console.log("▸ Daily cash");
+    await adminCtx.addCookies([{ name: "rq_site", value: String(hill), url: BASE }]);
+    const yesterday = new Date(`${today}T00:00:00Z`);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const dayBefore = yesterday.toISOString().slice(0, 10);
+    await admin.goto(`${BASE}/cash?date=${dayBefore}`);
+    await admin.fill('input[name="opening"]', "5000");
+    await admin.fill('input[name="counted"]', "5000");
+    await admin.click("button:has-text('Close the day')");
+    check(await seen(admin, ".alert-ok:has-text('matches exactly')"), "the first count starts from an opening amount");
+
+    const cashOrder = await orderFor(hillCustomer, 2, 1000, { site: hill });
+    const upiOrder = await orderFor(hillCustomer, 3, 1000, { site: hill });
+    await deliver(admin, cashOrder, { paid: "2000", mode: "cash" });
+    await deliver(admin, upiOrder, { paid: "3000", mode: "upi" });
+    await admin.goto(`${BASE}/customers/${hillCustomer}`);
+    await admin.fill('form:has(input[name="paid_on"]) input[name="amount"]', "700");
+    await admin.selectOption('select[name="mode"]', "cash");
+    await admin.click("text=Record payment >> nth=-1");
+    await admin.waitForSelector(".alert-ok");
+    await admin.fill('form:has(input[name="paid_on"]) input[name="amount"]', "900");
+    await admin.selectOption('select[name="mode"]', "bank");
+    await admin.click("text=Record payment >> nth=-1");
+    await admin.waitForFunction(() => document.querySelectorAll(".alert-ok").length > 0);
+    await admin.goto(`${BASE}/expenses`);
+    for (const [amount, from] of [["300", "cash"], ["4000", "bank"]]) {
+      await admin.selectOption('select[name="category"]', "other");
+      await admin.fill('form:has(select[name="paid_from"]) input[name="amount"]', amount);
+      await admin.selectOption('select[name="paid_from"]', from);
+      await admin.click("text=Save expense");
+      await admin.waitForSelector(`.alert-ok:has-text("₹${from === "cash" ? "300" : "4,000"}")`);
+    }
+    await admin.goto(`${BASE}/cash`);
+    const expectedStat = () => admin.locator('.stat:has-text("Should be in the box") .value').innerText();
+    // 5,000 opening + 1,000 and 2,000 at delivery + 700 dues − 300 expense. UPI, bank money and the bank expense stay out.
+    const expectedNow = await expectedStat();
+    check(expectedNow.includes("8,400"), `only cash counts: opening + cash sales + cash dues − cash expenses (${expectedNow})`);
+    await admin.fill('input[name="deposited"]', "2000");
+    await admin.fill('input[name="counted"]', "6300");
+    await admin.evaluate(() => document.querySelector('input[name="note"]').removeAttribute("required"));
+    await admin.click("button:has-text('Close the day')");
+    check(await seen(admin, ".alert-error:has-text('explaining the difference')"), "a count that doesn't match needs an explanation");
+    await admin.fill('input[name="note"]', "Short by a hundred, checking");
+    await admin.click("button:has-text('Close the day')");
+    check(await seen(admin, ".alert-ok:has-text('₹100 short')"), "a short count is reported to the rupee");
+    const [[closed]] = await appConn.query("SELECT * FROM cash_closings WHERE site_id = ? AND close_date = ?", [hill, today]);
+    check(Number(closed.opening) === 5000 && Number(closed.cash_sales) === 3000 && Number(closed.cash_received) === 700 && Number(closed.cash_expenses) === 300
+      && Number(closed.deposited) === 2000 && Number(closed.expected) === 6400 && Number(closed.counted) === 6300 && Number(closed.difference) === -100, "the closing keeps every figure as it stood");
+    await rejects(appConn.query("UPDATE cash_closings SET difference = 0 WHERE id = ?", [closed.id]), "database rejects a closing whose difference doesn't add up");
+    await admin.goto(`${BASE}/alerts`);
+    check(await seen(admin, "text=₹100 short"), "a short day is flagged on Needs attention");
+    await admin.goto(`${BASE}/expenses`);
+    await admin.selectOption('select[name="category"]', "other");
+    await admin.fill('form:has(select[name="paid_from"]) input[name="amount"]', "50");
+    await admin.click("text=Save expense");
+    await admin.waitForSelector('.alert-ok:has-text("₹50")');
+    await admin.goto(`${BASE}/cash`);
+    check(await seen(admin, ".alert-error:has-text('changed by ₹50')"), "a record added after the count shows up, instead of quietly changing the closing");
+    await admin.goto(`${BASE}/cash?date=${dayBefore}`);
+    check(await seen(admin, "text=A later day is already closed"), "an earlier closing is locked once a later day is closed");
+
+    console.log("▸ Royalty");
+    await appConn.query("UPDATE materials SET royalty_per_unit = 60 WHERE id = ?", [metalId]);
+    await adminCtx.addCookies([{ name: "rq_site", value: String(mainSite), url: BASE }]);
+    await admin.goto(`${BASE}/company`);
+    await admin.check('input[name="pass_required"]');
+    await admin.uncheck('input[name="gst_enabled"]');
+    await saveCompanyForm();
+    const noPass = await orderFor(local, 5, 1000);
+    check(await deliver(admin, noPass, { error: "royalty pass number" }), "with passes required, a royalty load can't leave without one");
+    await deliver(admin, noPass, { pass: "ETP-1001" });
+    const [[royal]] = await appConn.query("SELECT royalty_amount FROM orders WHERE id = ?", [noPass]);
+    check(Number(royal.royalty_amount) === 300, "the royalty is worked out and kept on the delivery");
+    const samePass = await orderFor(local, 5, 1000);
+    check(await deliver(admin, samePass, { pass: "ETP-1001", error: "already used" }), "the same pass can't be used twice");
+    await appConn.query("UPDATE materials SET royalty_per_unit = 75 WHERE id = ?", [metalId]);
+    const [[kept]] = await appConn.query("SELECT royalty_amount FROM orders WHERE id = ?", [noPass]);
+    check(Number(kept.royalty_amount) === 300, "a later rate change doesn't alter past royalty");
+    await admin.goto(`${BASE}/royalty`);
+    check(await seen(admin, 'tr:has-text("ETP-1001")'), "each load appears in the register with its pass");
+    check((await admin.locator("body").innerText()).includes("doesn't connect to the portal"), "the page says plainly that it isn't linked to the State portal");
+    await admin.fill('input[name="permit_no"]', "LEASE-77");
+    await admin.fill('input[name="valid_from"]', `${today.slice(0, 8)}01`);
+    await admin.fill('input[name="valid_to"]', `${Number(today.slice(0, 4)) + 1}-03-31`);
+    await admin.fill('input[name="qty_allowed"]', "5.2");
+    await admin.click("button:has-text('Add permit')");
+    await admin.waitForSelector(".alert-ok:has-text('LEASE-77')");
+    await admin.reload();
+    check(await seen(admin, 'tr:has-text("LEASE-77") td:has-text("0.2")'), "a permit shows what's used and what's left");
+    await admin.goto(`${BASE}/alerts`);
+    check(await seen(admin, "text=Permit LEASE-77 is"), "a nearly used permit is flagged");
+    const royaltyCsv = await (await adminCtx.request.get(`${BASE}/api/export/royalty?month=${month}`)).text();
+    check(royaltyCsv.includes("ETP-1001"), "the register downloads as a spreadsheet");
+    await rootConn.query(`UPDATE ${DB}.companies SET pass_required = 0 WHERE id = 1`);
+    await appConn.query("UPDATE materials SET royalty_per_unit = 0 WHERE id = ?", [metalId]);
+
+    console.log("▸ Tally");
+    await appConn.query("UPDATE customers SET name = 'Shree & Sons <Pune>' WHERE id = ?", [local]);
+    const tallyUrl = (kind) => `${BASE}/api/export/tally?kind=${kind}&from=${today}&to=${today}`;
+    const tallyFile = async (kind) => {
+      const res = await adminCtx.request.get(tallyUrl(kind));
+      const raw = await res.body();
+      return { bom: raw[0] === 0xff && raw[1] === 0xfe, text: raw.subarray(2).toString("utf16le") };
+    };
+    const parseTally = (text) => admin.evaluate((xml) => {
+      const doc = new DOMParser().parseFromString(xml, "application/xml");
+      if (doc.querySelector("parsererror")) return { broken: true };
+      const vouchers = [...doc.querySelectorAll("VOUCHER")].map((v) => {
+        const entries = [...v.querySelectorAll("ALLLEDGERENTRIES\\.LIST")];
+        return {
+          type: v.getAttribute("VCHTYPE"),
+          sum: entries.reduce((s, e) => s + Math.round(Number(e.querySelector("AMOUNT").textContent) * 100), 0),
+          signsOk: entries.every((e) => (e.querySelector("ISDEEMEDPOSITIVE").textContent === "Yes") === (Number(e.querySelector("AMOUNT").textContent) < 0)),
+          ledgers: entries.map((e) => e.querySelector("LEDGERNAME").textContent),
+          date: v.querySelector("DATE").textContent,
+        };
+      });
+      return { vouchers, ledgers: [...doc.querySelectorAll("LEDGER")].map((l) => [l.getAttribute("NAME"), l.querySelector("PARENT").textContent]) };
+    }, text);
+    const vouchersFile = await tallyFile("vouchers");
+    check(vouchersFile.bom, "Tally files are saved in Tally's own text format, so Marathi names survive");
+    const parsed = await parseTally(vouchersFile.text);
+    check(!parsed.broken && parsed.vouchers.length > 5, "the voucher file is valid XML, even with & and < in a customer's name");
+    check(parsed.vouchers.every((v) => v.sum === 0), "every voucher's debits and credits balance to the paisa");
+    check(parsed.vouchers.every((v) => v.signsOk), "debits and credits use Tally's sign convention");
+    check(["Sales", "Receipt", "Payment"].every((type) => parsed.vouchers.some((v) => v.type === type)), "sales, receipts and expenses all come across");
+    check(parsed.vouchers.some((v) => v.ledgers.includes("Output CGST") && v.ledgers.includes("Output SGST")), "GST goes to its own ledgers");
+    check(parsed.vouchers.every((v) => /^\d{8}$/.test(v.date)), "dates are in Tally's format");
+    const mastersFile = await tallyFile("masters");
+    const masters = await parseTally(mastersFile.text);
+    check(masters.ledgers.some(([n, group]) => n === "Shree & Sons <Pune>" && group === "Sundry Debtors"), "customers become Sundry Debtors ledgers");
+    check(masters.ledgers.some(([n, group]) => n === "Output CGST" && group === "Duties & Taxes"), "tax ledgers go under Duties & Taxes");
+
+    await admin.goto(`${BASE}/tally`);
+    await admin.fill('input[name="ledger_sales"]', "Sales - Aggregates");
+    await admin.click('form:has(input[name="ledger_sales"]) button:has-text("Save")');
+    await admin.waitForSelector('.alert-ok:has-text("Saved.")');
+    const renamed = await parseTally((await tallyFile("vouchers")).text);
+    check(renamed.vouchers.some((v) => v.ledgers.includes("Sales - Aggregates")), "ledger names can be matched to an existing Tally company");
+    await admin.goto(`${BASE}/tally?from=${today}&to=${today}`);
+    await admin.click("text=Mark as imported");
+    await admin.waitForSelector(".alert-ok:has-text('marked as imported')");
+    const afterMark = await parseTally((await tallyFile("vouchers")).text);
+    check(afterMark.vouchers.length === 0, "once imported, nothing is sent twice");
+    await rootConn.query(`UPDATE ${DB}.companies SET gst_enabled = 1 WHERE id = 1`);
+    const lateBill = await orderFor(local, 1, 1000);
+    await deliver(admin, lateBill);
+    await admin.goto(`${BASE}/tally?from=${today}&to=${today}`);
+    await admin.click("text=Mark as imported");
+    await admin.waitForSelector(".alert-ok:has-text('marked as imported')");
+    const lateInvoice = await invoiceOf(lateBill);
+    admin.once("dialog", (d) => d.accept());
+    await admin.goto(`${BASE}/deliveries/${lateBill}`);
+    await admin.click("text=Reopen delivery");
+    await admin.waitForSelector('input[name="vehicle_number"]');
+    await admin.goto(`${BASE}/tally?from=${today}&to=${today}`);
+    check(await seen(admin, `.alert-error:has-text("${lateInvoice.number}")`), "an invoice cancelled after import is listed for removal from Tally");
+    await rootConn.query(`UPDATE ${DB}.companies SET gst_enabled = 0 WHERE id = 1`);
+
+    console.log("▸ Offline at the gate");
+    await rootConn.query(`UPDATE ${DB}.companies SET gst_enabled = 1 WHERE id = 1`);
+    await appConn.query("UPDATE users SET site_id = NULL WHERE username = 'ramesh'");
+    const bookedForGate = await orderFor(local, 4, 1000);
+    const gateCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const gate = await newPage(gateCtx);
+    await login(gate, "ramesh", "worker123");
+    await gate.waitForSelector('.page-eyebrow:has-text("Ramesh")');
+    await gate.waitForFunction(async () => Boolean(await caches.match("/gate")), null, { timeout: 20000, polling: 300 });
+    await gate.goto(`${BASE}/gate`);
+    await gate.waitForFunction(async () => {
+      const open = indexedDB.open("rk-offline");
+      const db = await new Promise((resolve) => { open.onsuccess = () => resolve(open.result); open.onerror = () => resolve(null); });
+      if (!db || !db.objectStoreNames.contains("meta")) return false;
+      const row = await new Promise((resolve) => { const r = db.transaction("meta").objectStore("meta").get("snapshot"); r.onsuccess = () => resolve(r.result); });
+      db.close();
+      return Boolean(row);
+    }, null, { timeout: 15000, polling: 300 });
+    await gate.reload();
+    await gate.waitForSelector("text=Save load");
+    check(await seen(gate, "#gate-customers option[value='Wai Contractors']") || await gate.locator("#gate-customers option").count() > 1, "signing in once prepares the device: customers are stored for later");
+    const snapshotText = await gate.evaluate(async () => JSON.stringify(await (await fetch("/api/offline/snapshot")).json()));
+    check(!snapshotText.includes("Rival") && !snapshotText.includes("outstanding") && !snapshotText.includes("balance"), "the stored copy has no balances and nothing from another company");
+
+    await stopApp();
+    await gateCtx.setOffline(true);
+    await gate.reload();
+    check(await seen(gate, "text=Save load"), "with the server unreachable, the gate screen still opens");
+    check(await seen(gate, ".gate-status:has-text('Offline')"), "…and says it's offline");
+    await gate.goto(`${BASE}/deliveries`).catch(() => {});
+    check(await seen(gate, "text=Save load"), "any other page asked for offline lands on the gate screen, not a browser error");
+
+    await gate.fill('input[list="gate-customers"]', "Walk-in Contractor");
+    await gate.locator("form select").filter({ hasText: "Grade-A Metal" }).selectOption({ label: "Grade-A Metal" });
+    await gate.fill('input[list="gate-vehicles"]', "mh 12 of 4242");
+    await gate.locator('label:has-text("Rate per") input, label:has-text("Rate") input').first().fill("1000");
+    await gate.locator('label:has-text("Empty") input, label:has-text("Tare") input').first().fill("8000");
+    await gate.locator('label:has-text("Loaded") input, label:has-text("Gross") input').first().fill("18000");
+    check((await gate.locator(".net-line").innerText()).includes("10,000"), "weights work out the net offline too");
+    await gate.locator('label:has-text("Paid") input[type="number"]').first().fill("1000");
+    await gate.click("text=Save load");
+    check(await seen(gate, "text=Saved on this device"), "a load is saved with no connection at all");
+    check((await gate.locator(".challan").innerText()).includes("MH 12 OF 4242"), "…and a slip can be printed for the driver");
+    check((await gate.locator(".challan").innerText()).includes("not a tax invoice"), "the slip says plainly it isn't a tax invoice");
+    await gate.click("text=Next truck");
+    await gate.locator("select").first().selectOption({ value: String(bookedForGate) });
+    await gate.fill('input[list="gate-vehicles"]', "MH 12 OF 5151");
+    await gate.click("text=Save load");
+    await gate.waitForSelector("text=Saved on this device");
+    await gate.click("text=Next truck");
+    await gate.reload();
+    check(await seen(gate, "text=Waiting to send: 2"), "entries survive the screen being closed and reopened");
+    const [[{ stillNone }]] = await appConn.query("SELECT COUNT(*) AS stillNone FROM orders WHERE offline_ref IS NOT NULL");
+    check(stillNone === 0, "nothing has reached the server yet");
+
+    await startApp();
+    await gateCtx.setOffline(false);
+    await gate.waitForFunction(() => !document.body.innerText.includes("Waiting to send"), null, { timeout: 20000, polling: 300 }).catch(() => {});
+    check(!(await gate.locator("body").innerText()).includes("Waiting to send"), "reconnecting sends everything without anyone doing a thing");
+    const [synced] = await appConn.query("SELECT o.*, c.name FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.offline_ref IS NOT NULL ORDER BY o.id");
+    check(synced.length === 2 && synced.every((o) => o.status === "delivered"), "both loads arrive as completed deliveries");
+    const walkIn = synced.find((o) => o.name === "Walk-in Contractor");
+    check(walkIn && Number(walkIn.net_kg) === 10000 && Number(walkIn.delivered_qty) === 10 && walkIn.vehicle_number === "MH 12 OF 4242", "a new customer is created and the weights are kept");
+    check(Number(walkIn.total_amount) === 10500 && Number(walkIn.balance_amount) === 9500 && walkIn.paid_mode === "cash", "tax and balance come out the same as a delivery made online");
+    check(walkIn.delivered_at === walkIn.dispatch_time, "the load is dated when it left, not when the connection came back");
+    const gateInvoices = await Promise.all(synced.map((o) => invoiceOf(o.id)));
+    check(gateInvoices.every((i) => i?.status === "issued"), "invoices are issued the moment the entries sync");
+    check(Number(synced.find((o) => o.id === bookedForGate)?.delivered_qty) === 4, "a booked order completed offline stays the same order");
+
+    const replayRecord = {
+      id: synced[0].offline_ref, order_id: null, customer_name: "Walk-in Contractor", material_id: metalId, rate: 1000, vehicle_number: "MH 12 OF 4242",
+      arrival_time: `${today} 00:00:00`, dispatch_time: `${today} 00:01:00`, delivered_qty: "10", paid_amount: "1000", paid_mode: "cash",
+    };
+    const sendRecords = (page, records) => page.evaluate(async (body) => (await (await fetch("/api/offline/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ records: body }) })).json()).results, records);
+    const [replayed] = await sendRecords(gate, [replayRecord]);
+    const [[{ afterReplay }]] = await appConn.query("SELECT COUNT(*) AS afterReplay FROM orders WHERE offline_ref IS NOT NULL");
+    check(replayed.status === "done" && afterReplay === 2, "sending an entry twice can't create a second delivery");
+
+    const newRef = () => globalThis.crypto.randomUUID();
+    const base = { ...replayRecord, arrival_time: `${today} 00:00:00`, dispatch_time: `${today} 00:01:00` };
+    const [rejectedClock] = await sendRecords(gate, [{ ...base, id: newRef(), dispatch_time: "2099-01-01 00:00:00" }]);
+    check(rejectedClock.status === "rejected", "a device with a wrong clock is refused rather than backdating or forward-dating a load");
+    const [otherCustomer] = await rootConn.query(`INSERT INTO ${DB}.customers (company_id, name) VALUES (?, 'Rival Customer')`, [foreign.insertId]);
+    const [crossed] = await sendRecords(gate, [{ ...base, id: newRef(), customer_id: otherCustomer.insertId }]);
+    check(crossed.status === "rejected", "a device can't record a sale against another company's customer");
+    const [[{ afterRefusals }]] = await appConn.query("SELECT COUNT(*) AS afterRefusals FROM orders WHERE offline_ref IS NOT NULL");
+    check(afterRefusals === 2, "a refused entry leaves nothing behind");
+
+    const concurrent = await Promise.all([1, 2, 3, 4].map(() => sendRecords(gate, [{ ...base, id: newRef(), customer_name: "Rush Hour" }])));
+    check(concurrent.every(([r]) => r.status === "done"), "several devices can sync at once");
+    const numbers = (await appConn.query("SELECT number FROM invoices WHERE buyer_name = 'Rush Hour' ORDER BY number"))[0].map((r) => Number(r.number.slice(-5)));
+    check(new Set(numbers).size === 4 && numbers[3] - numbers[0] === 3, "…and each gets its own invoice number, with no duplicates or gaps");
+    const [[{ rushCustomers }]] = await appConn.query("SELECT COUNT(*) AS rushCustomers FROM customers WHERE name = 'Rush Hour'");
+    check(rushCustomers >= 1, "a customer name typed offline resolves to a customer record");
+
+    const cookieHeader = (await gateCtx.cookies()).map((c) => `${c.name}=${c.value}`).join("; ");
+    const syncFrom = (headers) => fetch(`${BASE}/api/offline/sync`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify({ records: [] }) });
+    check((await syncFrom({ Cookie: cookieHeader })).status === 403, "a sync with no browser origin is refused");
+    check((await syncFrom({ Cookie: cookieHeader, Origin: "https://evil.example" })).status === 403, "a sync from another website is refused");
+    check((await syncFrom({ Origin: BASE })).status === 401, "a sync with no login is refused");
+    check((await fetch(`${BASE}/api/offline/snapshot`)).status === 401, "the stored data can't be fetched without a login");
+    await gateCtx.close();
+    await rootConn.query(`UPDATE ${DB}.companies SET gst_enabled = 0 WHERE id = 1`);
+    await appConn.query("UPDATE customers SET name = 'Sahyadri Builders' WHERE id = ?", [local]);
+
     console.log("▸ Sessions");
     await admin.goto(`${BASE}/users`);
     await admin.fill('tr:has-text("ramesh") input[name="password"]', "new-password-1");
@@ -584,8 +1101,9 @@ async function main() {
     check((await visitor.getAttribute('meta[name="robots"]', "content")).startsWith("index"), "the landing page can be indexed");
     const ld = JSON.parse(await visitor.textContent('script[type="application/ld+json"]'));
     check(ld["@graph"].some((n) => n["@type"] === "SoftwareApplication"), "structured data describes the product");
-    check(!ld["@graph"][1].featureList.some((f) => /GST|multi-location/i.test(f)), "planned modules aren't listed as features");
-    check(await seen(visitor, ".module-planned:has-text('GST Invoicing') .tag-planned"), "planned modules are labelled as planned");
+    check(ld["@graph"][1].featureList.some((f) => /GST/.test(f)) && !ld["@graph"][1].featureList.some((f) => /Tally/.test(f)), "only finished modules are listed as features");
+    check(await seen(visitor, ".tag-partial:near(:text('Tally Export'))"), "a module that still needs checking on your side says so");
+    check(await seen(visitor, "text=E-invoicing (IRN) isn't included yet"), "the website says plainly what isn't included");
     await visitor.fill('.demo-form input[name="name"]', "Demo Person");
     await visitor.fill('.demo-form input[name="company"]', "Test Stone Works");
     await visitor.selectOption('.demo-form select[name="business_type"]', "Quarry");
@@ -628,11 +1146,11 @@ async function main() {
     check(second !== 1 && co.plan === "trial" && co.access_until, "a new company starts on a trial, separate from company 1");
     const [firstCustomer] = await q("SELECT id, name FROM customers WHERE company_id = 1 AND name = 'Shree Builders'");
     const [firstOrder] = await q("SELECT id FROM orders WHERE company_id = 1 LIMIT 1");
-    for (const path of ["/", "/customers", "/orders", "/deliveries", "/accounts", "/expenses", "/users", "/activity", "/staff", "/payroll", "/attendance", "/orders/new", "/production", "/stock", "/vehicles", "/alerts"]) {
+    for (const path of ["/", "/customers", "/orders", "/deliveries", "/accounts", "/cash", "/invoices", "/gst", "/royalty", "/tally", "/sites", "/expenses", "/users", "/activity", "/staff", "/payroll", "/attendance", "/orders/new", "/production", "/stock", "/vehicles", "/alerts"]) {
       await other.goto(`${BASE}${path}`);
       await other.waitForLoadState("networkidle");
       const body = await other.textContent("body");
-      check(await seen(other, ".side-brand") && !/Shree Builders|ramesh|Ramesh|Grade-A Metal|MH 14 XY 9999/.test(body), `another company's data is not on ${path}`);
+      check(await seen(other, ".side-brand") && !/Shree Builders|ramesh|Ramesh|Grade-A Metal|MH 14 XY 9999|Hill Site|LEASE-77|Sahyadri|ETP-1001/.test(body), `another company's data is not on ${path}`);
     }
     await other.goto(`${BASE}/customers/${firstCustomer.id}`);
     check(await seen(other, "text=Page not found"), "another company's customer can't be opened by address");
@@ -707,9 +1225,105 @@ async function main() {
     check(await seen(other, "text=Page not found"), "customer companies can't see demo requests");
     for (const path of ["/signup", "/terms", "/privacy"]) check((await fetch(`${BASE}${path}`, { redirect: "manual" })).status === 200, `${path} is public`);
 
+    const [[{ theirInvoice }]] = await appConn.query("SELECT MIN(id) AS theirInvoice FROM invoices WHERE company_id = 1");
+    const otherRequest = other.context().request;
+    await other.goto(`${BASE}/invoices/${theirInvoice}`);
+    check(await seen(other, "text=Page not found"), "another company's invoice can't be opened by its address");
+    check((await otherRequest.get(`${BASE}/api/export/ewaybill?id=${theirInvoice}`)).status() === 404, "…or downloaded as an e-way bill");
+    check(!(await (await otherRequest.get(`${BASE}/api/export/gst?month=${today.slice(0, 7)}&kind=b2b`)).text()).includes("27AAPFU0939F1ZV"), "GST sheets hold only your own invoices");
+    const otherTally = (await (await otherRequest.get(`${BASE}/api/export/tally?kind=masters&from=${today}&to=${today}`)).body()).subarray(2).toString("utf16le");
+    check(!/Sahyadri|Shree/.test(otherTally), "Tally files hold only your own customers");
+
     console.log("▸ Friendly failures");
     await admin.goto(`${BASE}/this-page-does-not-exist`);
     check(await seen(admin, ".status-page >> text=Page not found"), "an unknown address shows the branded not-found page");
+
+    await admin.goto(`${BASE}/expenses`);
+    admin.once("dialog", (d) => d.accept());
+    await admin.locator('tr:has(button) button').first().click();
+    check(await seen(admin, ".flash:has-text('Expense deleted')"), "a one-click delete confirms what it did");
+    const flashOrder = await orderFor(local, 1, 1000);
+    admin.once("dialog", (d) => d.accept());
+    await admin.goto(`${BASE}/deliveries/${flashOrder}`);
+    await admin.click("button:has-text('Cancel this order')");
+    check(await seen(admin, `.flash:has-text("Order #${flashOrder} cancelled")`), "cancelling an order confirms it, even across a redirect");
+    await admin.reload();
+    await admin.waitForSelector("h1:has-text('Deliveries')");
+    check(await admin.locator(".flash").count() === 0, "…and the message doesn't come back on the next page");
+
+    console.log("▸ Site quality");
+    const badPage = await fetch(`${BASE}/no-such-page`, { redirect: "manual" });
+    check(badPage.status === 404 && (await badPage.text()).includes("Page not found"), "a mistyped address shows a real 404, not the login page");
+    check((await fetch(`${BASE}/customers`, { redirect: "manual" })).status === 307, "…while app pages still ask a visitor to sign in");
+    for (const asset of ["/favicon.ico", "/apple-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable.png"]) {
+      const res = await fetch(`${BASE}${asset}`);
+      check(res.ok && /image/.test(res.headers.get("content-type")) && (await res.arrayBuffer()).byteLength < 20 * 1024, `${asset} exists and is small`);
+    }
+    const manifest = await (await fetch(`${BASE}/manifest.webmanifest`)).json();
+    check(manifest.icons.some((i) => i.sizes === "512x512" && i.purpose === "maskable"), "the app can be installed with a proper icon");
+
+    const PUBLIC_PAGES = ["/", "/mr", "/quarry-management-software", "/stone-crusher-management-software", "/aggregate-inventory-management", "/weighbridge-management-software", "/quarry-dispatch-management", "/terms", "/privacy", "/login", "/signup"];
+    const APP_PAGES = ["/", "/orders/new", "/orders", "/deliveries", "/expenses", "/attendance", "/production", "/stock", "/vehicles", "/alerts", "/customers", `/customers/${local}`, "/accounts", "/payroll", "/staff", "/users", "/activity", "/company", "/billing", "/enquiries", "/cash", "/invoices", `/invoices/${inv.id}`, "/gst", "/royalty", "/tally", "/sites"];
+    const sideways = (page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    const phoneVisitor = { "x-forwarded-for": "198.51.100.7" };
+    const seenTitles = new Map();
+    const publicPhone = await browser.newContext({ viewport: { width: 320, height: 700 }, isMobile: true, hasTouch: true, extraHTTPHeaders: phoneVisitor });
+    const phone = await newPage(publicPhone);
+    const hrefs = new Set();
+    for (const path of PUBLIC_PAGES) {
+      await phone.goto(`${BASE}${path}`, { waitUntil: "load" });
+      const page = await phone.evaluate(() => ({
+        title: document.title,
+        description: document.querySelector('meta[name="description"]')?.content ?? "",
+        h1: document.querySelectorAll("h1").length,
+        icon: document.querySelectorAll('link[rel~="icon"]').length,
+        links: [...document.querySelectorAll("a[href]")].map((a) => a.getAttribute("href")),
+      }));
+      check(await sideways(phone) <= 1, `${path} doesn't scroll sideways on a small phone`);
+      check(page.title && !seenTitles.has(page.title), `${path} has its own title`);
+      seenTitles.set(page.title, path);
+      check(page.description.length >= 50 && page.description.length <= 165, `${path} has a meta description`);
+      check(page.h1 === 1 && page.icon > 0, `${path} has one main heading and a favicon`);
+      page.links.forEach((l) => hrefs.add(l));
+    }
+    const internal = [...hrefs].filter((l) => !/^(mailto|tel|#)/.test(l) && !/^https?:/.test(l)).map((l) => l.split("#")[0]).filter(Boolean);
+    const failures = (await Promise.all([...new Set(internal)].map(async (l) => [l, (await fetch(`${BASE}${l}`, { headers: phoneVisitor })).status]))).filter(([, code]) => code >= 400);
+    check(failures.length === 0, `every link on the public site works${failures.length ? `: ${failures.join(" ")}` : ""}`);
+    check(hrefs.has("tel:+919876543210") && hrefs.has("mailto:hello@example.in"), "the phone number and email can be tapped");
+    const siteMapXml = await (await fetch(`${BASE}/sitemap.xml`)).text();
+    const listed = [...siteMapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname);
+    check(listed.length >= 7 && (await Promise.all(listed.map(async (l) => (await fetch(`${BASE}${l}`, { headers: phoneVisitor })).status))).every((c) => c === 200), "every page in the sitemap exists");
+
+    await phone.goto(`${BASE}/`);
+    check(!(await phone.locator(".lp-nav a.nav-wide").first().isVisible()), "the website's wide menu is hidden on a phone");
+    await phone.click(".site-menu-btn");
+    await phone.waitForSelector(".site-menu");
+    check(await phone.locator(".site-menu a").count() === 5, "…and a phone menu opens with the same links");
+    await phone.keyboard.press("Escape");
+    await phone.waitForSelector(".site-menu", { state: "detached" });
+    await phone.click(".site-menu-btn");
+    await phone.click('.site-menu a[href="#modules"]');
+    await phone.waitForSelector(".site-menu", { state: "detached" });
+    check(await phone.waitForFunction(() => scrollY > 200, null, { timeout: 4000, polling: 100 }).then(() => true, () => false), "choosing a link closes the menu and goes there");
+    await publicPhone.close();
+
+    const ownerPhone = await browser.newContext({ storageState: await adminCtx.storageState(), viewport: { width: 320, height: 700 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { "x-forwarded-for": "198.51.100.8" } });
+    const ownerPage = await newPage(ownerPhone);
+    const offenders = [];
+    const smallFonts = [];
+    for (const path of APP_PAGES) {
+      await ownerPage.goto(`${BASE}${path}`, { waitUntil: "load" });
+      await ownerPage.waitForTimeout(80);
+      if (await sideways(ownerPage) > 1) offenders.push(path);
+      const small = await ownerPage.evaluate(() => [...document.querySelectorAll("main input:not([type=hidden]):not([type=checkbox]):not([type=radio]), main select, main textarea")]
+        .filter((el) => el.getBoundingClientRect().width && parseFloat(getComputedStyle(el).fontSize) < 16).length);
+      if (small) smallFonts.push(path);
+    }
+    check(offenders.length === 0, `no app page scrolls sideways on a small phone${offenders.length ? `: ${offenders}` : ""}`);
+    check(smallFonts.length === 0, `form fields are large enough that phones don't zoom in${smallFonts.length ? `: ${smallFonts}` : ""}`);
+    await ownerPage.goto(`${BASE}/customers`);
+    check(await seen(ownerPage, 'a[href^="tel:"]'), "customers' phone numbers can be tapped to call");
+    await ownerPhone.close();
 
     console.log("▸ Performance & cache");
     // An account still on the old bcrypt hash signs in fine and is upgraded to scrypt.

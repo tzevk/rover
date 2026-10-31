@@ -2,7 +2,11 @@ import LegalPage from "@/components/legal/LegalPage";
 import { PLAN_DAYS, TRIAL_DAYS } from "@/lib/billing";
 import { SITE } from "@/lib/site";
 
-export const metadata = { title: "Terms of Service", alternates: { canonical: "/terms" } };
+export const metadata = {
+  title: "Terms of Service",
+  description: "The terms for using R.K. Enterprises quarry operations software, including trials, payment and your responsibilities.",
+  alternates: { canonical: "/terms" },
+};
 
 export default function Terms() {
   return (

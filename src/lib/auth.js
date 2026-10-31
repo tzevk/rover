@@ -12,7 +12,7 @@ export const getUser = cache(async () => {
   if (!session) return null;
   const [user] = await cached(`user:${session.sub}`, { tags: [TAGS.users], ttl: 30 }, () =>
     query(
-      `SELECT u.id, u.company_id, u.username, u.full_name, u.role, u.session_version,
+      `SELECT u.id, u.company_id, u.site_id, u.username, u.full_name, u.role, u.session_version,
               c.name AS company_name, c.plan, c.access_until,
               (c.access_until IS NULL OR c.access_until > NOW()) AS has_access
        FROM users u JOIN companies c ON c.id = u.company_id

@@ -7,8 +7,9 @@ import LoginForm from "./LoginForm";
 
 export const generateMetadata = pageTitle("login.title");
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }) {
   const { t } = await getI18n();
+  const { out } = await searchParams;
   // The last word of the name is set in gold, e.g. "R.K. *Enterprises*".
   const words = t("app.name").trim().split(/\s+/);
   const last = words.pop();
@@ -34,6 +35,7 @@ export default async function LoginPage() {
       </section>
 
       <section className="auth-panel">
+        {out && <div className="alert alert-ok" role="status">{t("flash.signedOut")}</div>}
         <LoginForm />
         <p className="auth-foot">{t("login.foot")}</p>
         {SITE.signupOpen && <p className="auth-foot">{t("signup.new")} <Link href="/signup">{t("signup.title")}</Link></p>}

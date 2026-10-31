@@ -101,28 +101,31 @@ export const customerBalances = (companyId) => `
 
 // Stock isn't stored, it's worked out: opening + produced − used − delivered ± counts. So it can
 // never drift from the records, and a reopened delivery puts its material straight back.
-export const stockLevels = (companyId) => {
+// With a site it's that site's stock. Opening stock sits at the company's first site.
+export const stockLevels = (companyId, site = null) => {
   const cid = Number(companyId);
+  const at = site ? ` AND site_id = ${Number(site.id)}` : "";
+  const opening = site && !site.main ? "0" : "m.opening_stock";
   return `
   SELECT m.*, COALESCE(p.made, 0) AS produced, COALESCE(u.used_qty, 0) AS consumed, COALESCE(d.sold, 0) AS delivered,
          COALESCE(r.held, 0) AS reserved, COALESCE(c.diff, 0) AS adjusted,
-         m.opening_stock + COALESCE(p.made, 0) - COALESCE(u.used_qty, 0) - COALESCE(d.sold, 0) + COALESCE(c.diff, 0) AS on_hand
+         ${opening} + COALESCE(p.made, 0) - COALESCE(u.used_qty, 0) - COALESCE(d.sold, 0) + COALESCE(c.diff, 0) AS on_hand
   FROM materials m
   LEFT JOIN (SELECT material_id, SUM(qty) AS made FROM production_entries
-             WHERE company_id = ${cid} AND deleted_at IS NULL GROUP BY material_id) p ON p.material_id = m.id
+             WHERE company_id = ${cid}${at} AND deleted_at IS NULL GROUP BY material_id) p ON p.material_id = m.id
   LEFT JOIN (SELECT input_material_id, SUM(input_qty) AS used_qty FROM production_entries
-             WHERE company_id = ${cid} AND deleted_at IS NULL AND input_material_id IS NOT NULL GROUP BY input_material_id) u ON u.input_material_id = m.id
+             WHERE company_id = ${cid}${at} AND deleted_at IS NULL AND input_material_id IS NOT NULL GROUP BY input_material_id) u ON u.input_material_id = m.id
   LEFT JOIN (SELECT material_id, SUM(delivered_qty) AS sold FROM orders
-             WHERE company_id = ${cid} AND status = 'delivered' AND material_id IS NOT NULL GROUP BY material_id) d ON d.material_id = m.id
+             WHERE company_id = ${cid}${at} AND status = 'delivered' AND material_id IS NOT NULL GROUP BY material_id) d ON d.material_id = m.id
   LEFT JOIN (SELECT material_id, SUM(ordered_qty) AS held FROM orders
-             WHERE company_id = ${cid} AND status = 'pending' AND material_id IS NOT NULL GROUP BY material_id) r ON r.material_id = m.id
+             WHERE company_id = ${cid}${at} AND status = 'pending' AND material_id IS NOT NULL GROUP BY material_id) r ON r.material_id = m.id
   LEFT JOIN (SELECT material_id, SUM(difference) AS diff FROM stock_counts
-             WHERE company_id = ${cid} GROUP BY material_id) c ON c.material_id = m.id
+             WHERE company_id = ${cid}${at} GROUP BY material_id) c ON c.material_id = m.id
   WHERE m.company_id = ${cid}`;
 };
 
-export const getStock = (companyId) =>
-  cached(`stock:${companyId}`, { tags: [TAGS.stock, TAGS.orders], ttl: 60 }, () => query(`${stockLevels(companyId)} ORDER BY m.active DESC, m.name`));
+export const getStock = (companyId, site = null) =>
+  cached(`stock:${companyId}:${site?.id ?? "all"}`, { tags: [TAGS.stock, TAGS.orders], ttl: 60 }, () => query(`${stockLevels(companyId, site)} ORDER BY m.active DESC, m.name`));
 
 export const cleanVehicle = (v) => text(v, 20).toUpperCase().replace(/\s+/g, " ");
 

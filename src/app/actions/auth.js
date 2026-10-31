@@ -120,6 +120,7 @@ export const signup = guarded("signup", async (_prev, formData) => {
       "INSERT INTO companies (name, plan, access_until) VALUES (?, 'trial', DATE_ADD(NOW(), INTERVAL ? DAY))",
       [companyName, TRIAL_DAYS],
     );
+    await tx.query("INSERT INTO sites (company_id, name) VALUES (?, 'Main site')", [company.insertId]);
     const res = await tx.query(
       "INSERT INTO users (company_id, username, full_name, password_hash, role) VALUES (?, ?, ?, ?, 'admin')",
       [company.insertId, username, fullName, hash],
@@ -136,5 +137,5 @@ export const signup = guarded("signup", async (_prev, formData) => {
 
 export const logout = guarded("logout", async () => {
   (await cookies()).delete(SESSION_COOKIE);
-  redirect("/login");
+  redirect("/login?out=1");
 }, { inPage: true });

@@ -4,14 +4,18 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BellRing, BookOpenCheck, Boxes, Building2, CalendarCheck, CalendarDays, ClipboardList, Contact, Container, CreditCard, Factory, Inbox, HardHat, History, Home, LogOut, Menu,
-  PanelLeftClose, PanelLeftOpen, PlusCircle, Receipt, ShieldCheck, Truck, UserRound, Users, Wallet,
+  Banknote, BellRing, BookOpenCheck, Boxes, Building2, CalendarCheck, CalendarDays, ClipboardList, Contact, Container, CreditCard, Factory, FileCode2, FileText, Gem, Inbox, HardHat, History, Home, Landmark, LogOut, MapPin, Menu,
+  PanelLeftClose, PanelLeftOpen, PlusCircle, Receipt, ShieldCheck, Truck, UserRound, Users, Wallet, WifiOff,
 } from "lucide-react";
+import Flash from "./Flash";
 import Logo from "./Logo";
 import NavProgress from "./NavProgress";
+import OfflineKeeper from "./OfflineKeeper";
 import PrefsToggle from "./PrefsToggle";
 import { useI18n } from "./I18n";
 import { logout } from "@/app/actions/auth";
+import { chooseSite } from "@/app/actions/sites";
+import { clearSnapshot } from "@/lib/offline";
 import { setPrefCookie, SIDEBAR_COOKIE } from "@/lib/ui-prefs";
 
 const WORK = [
@@ -28,16 +32,25 @@ const OPERATIONS = [
   { href: "/vehicles", label: "nav.vehicles", icon: Container },
 ];
 
+const FINANCE = [
+  { href: "/cash", label: "nav.cash", icon: Banknote },
+  { href: "/accounts", label: "nav.accounts", icon: BookOpenCheck },
+  { href: "/invoices", label: "nav.invoices", icon: FileText },
+  { href: "/gst", label: "nav.gst", icon: Landmark },
+  { href: "/royalty", label: "nav.royalty", icon: Gem },
+  { href: "/tally", label: "nav.tally", icon: FileCode2 },
+];
+
 // label / short are translation keys.
 const ADMIN = [
   { href: "/alerts", label: "nav.alerts", icon: BellRing },
   { href: "/orders", label: "nav.orders", icon: ClipboardList },
   { href: "/customers", label: "nav.customers", icon: Contact },
-  { href: "/accounts", label: "nav.accounts", icon: BookOpenCheck },
   { href: "/payroll", label: "nav.payroll", icon: Wallet },
   { href: "/staff", label: "nav.staff", icon: HardHat },
   { href: "/users", label: "nav.users", icon: Users },
   { href: "/activity", label: "nav.activity", icon: History },
+  { href: "/sites", label: "nav.sites", icon: MapPin },
   { href: "/company", label: "nav.company", icon: Building2 },
   { href: "/billing", label: "nav.billing", icon: CreditCard },
   { href: "/enquiries", label: "nav.enquiries", icon: Inbox, vendorOnly: true },
@@ -56,7 +69,7 @@ function currentSection(pathname, items) {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 
-export default function Shell({ user, appName, pendingCount, today, initialCollapsed = false, children }) {
+export default function Shell({ user, appName, pendingCount, today, initialCollapsed = false, sites = [], siteId, flash, children }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -68,7 +81,7 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
     setPrefCookie(SIDEBAR_COOKIE, next ? "collapsed" : "open");
   }
   const admin = ADMIN.filter((i) => !i.vendorOnly || user.company_id === 1);
-  const items = user.role === "admin" ? [...WORK, ...OPERATIONS, ...admin] : [...WORK, ...OPERATIONS];
+  const items = user.role === "admin" ? [...WORK, ...OPERATIONS, ...FINANCE, ...admin] : [...WORK, ...OPERATIONS];
   const section = currentSection(pathname, items) ?? WORK[0];
   const SectionIcon = section.icon;
   const initial = user.full_name.charAt(0).toUpperCase();
@@ -115,6 +128,8 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
   return (
     <div className="shell" data-open={open} data-collapsed={collapsed}>
       <NavProgress />
+      <OfflineKeeper />
+      {flash && <Flash key={flash} message={flash} />}
       <div className="backdrop" aria-hidden="true" />
       <header className="topbar">
         <Logo size={30} />
@@ -136,13 +151,28 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
           aria-label={t(collapsed ? "shell.expand" : "shell.collapse")} title={t(collapsed ? "shell.expand" : "shell.collapse")}>
           {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
         </button>
+        {sites.length > 1 && (
+          <label className="side-site side-label">
+            <MapPin size={14} />
+            <span className="sr-only">{t("sites.working")}</span>
+            <select value={siteId} disabled={Boolean(user.site_id)} onChange={(e) => chooseSite(Number(e.target.value))}>
+              {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </label>
+        )}
         <nav className="side-nav">
           {user.role === "admin" && <div className="side-group"><span className="side-label">{t("shell.dailyWork")}</span></div>}
           {WORK.map(link)}
           <div className="side-group"><span className="side-label">{t("shell.operations")}</span></div>
           {OPERATIONS.map(link)}
+          <a href="/gate" className="side-link" title={collapsed ? t("gate.title") : undefined}>
+            <WifiOff size={18} />
+            <span className="side-label">{t("gate.title")}</span>
+          </a>
           {user.role === "admin" && (
             <>
+              <div className="side-group"><span className="side-label">{t("shell.finance")}</span></div>
+              {FINANCE.map(link)}
               <div className="side-group"><span className="side-label">{t("shell.owner")}</span></div>
               {admin.map(link)}
             </>
@@ -154,7 +184,7 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
             <strong>{user.full_name}</strong>
             <span><RoleIcon size={12} /> {t(user.role === "admin" ? "shell.adminLong" : "shell.workerLong")}</span>
           </div>
-          <form action={logout}>
+          <form action={logout} onSubmit={() => { clearSnapshot().catch(() => {}); }}>
             <button className="icon-btn" aria-label={t("shell.signOut")} title={t("shell.signOut")}>
               <LogOut size={18} />
             </button>

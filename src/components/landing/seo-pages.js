@@ -11,8 +11,8 @@ export const SEO_PAGES = {
       ["Who sees what", "Staff logins handle daily work: bookings, deliveries, expenses and attendance. Customer balances, reports, payroll and logins are limited to the owner. Every change is logged with who made it and when."],
       ["Working in Marathi", "Each person can switch between English and Marathi with one tap, so the office and the site can use the same records in the language they prefer."],
     ],
-    available: ["Production by shift", "Live stock and physical counts", "Order booking", "Weighbridge records and challans", "Vehicles, fuel and repairs", "Customer ledgers and daily accounts", "Attendance and payroll"],
-    planned: ["GST invoicing", "Multi-location reporting"],
+    available: ["Production by shift", "Live stock and physical counts", "Order booking", "Weighbridge records and challans", "Vehicles, fuel and repairs", "Customer ledgers and daily accounts", "GST invoices and GSTR-1 working sheets", "Daily cash count by site", "Royalty register and permit limits", "Comparing several sites", "Offline gate entry", "Attendance and payroll"],
+    planned: ["E-invoicing (IRN)", "Tracking stock moved between sites"],
     faqs: [
       ["Can staff use it on their phones?", "Yes. It runs in the browser on any phone or computer."],
       ["Can staff see customer balances?", "No. Balances and reports are limited to the owner's login."],
@@ -28,9 +28,9 @@ export const SEO_PAGES = {
       ["Part payments and advances", "Money taken at delivery and payments made later both count against the same customer balance. Advances show as credit."],
       ["Daily cash", "The daily accounts page brings together sales, collections, expenses and net cash, so the day can be closed without going through each register."],
     ],
-    available: ["Rate and quantity orders", "Output by shift, with boulders used", "Product-wise stock", "Part payments, advances and credit limits", "Daily accounts"],
-    planned: ["GST invoicing", "Crusher running hours"],
-    faqs: [["Does it produce GST invoices?", "Not yet. It records orders, deliveries and payments. Invoicing isn't part of the current product."]],
+    available: ["Rate and quantity orders", "Output by shift, with boulders used", "Product-wise stock", "Part payments, advances and credit limits", "Daily accounts and cash count", "GST invoices with each delivery"],
+    planned: ["Crusher running hours"],
+    faqs: [["Does it produce GST invoices?", "Yes. With GST switched on, each delivery issues a tax invoice with CGST, SGST or IGST worked out, and each month is sorted into GSTR-1 working sheets. E-invoicing (IRN) isn't included yet."]],
   },
   "aggregate-inventory-management": {
     title: "Aggregate Inventory Management Software | R.K. Enterprises",
@@ -71,7 +71,7 @@ export const SEO_PAGES = {
       ["Fixing mistakes properly", "The owner can reopen a delivery entered wrongly. The balance reverses and the old values stay in the activity log."],
     ],
     available: ["Pending delivery list", "Vehicles at the gate", "Weighbridge weights on each load", "Payment at delivery", "Printed challan", "Trip counts by vehicle", "Reopening with full history"],
-    planned: ["Driver mobile app", "E-way bill generation"],
+    planned: ["Driver mobile app", "Generating e-way bills directly, without uploading a file"],
     faqs: [["Can two people complete the same order by accident?", "No. The order is locked while it's being completed, and a closed order can't be completed again."]],
   },
 };

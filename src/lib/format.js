@@ -44,6 +44,8 @@ export const fmtDateTime = (s, lang = "en") => (s ? `${fmtDate(s, lang)}, ${fmtT
 
 export const UNITS = ["tonne", "brass", "cft", "cum"];
 
+export const PAY_MODES = ["cash", "upi", "bank", "cheque"];
+
 export const EXPENSE_CATEGORIES = {
   fuel: "Fuel",
   maintenance: "Maintenance",

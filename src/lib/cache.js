@@ -25,6 +25,8 @@ export const TAGS = {
   staff: "staff",
   stock: "stock",
   vehicles: "vehicles",
+  sites: "sites",
+  cash: "cash",
 };
 
 /** Returns the cached value for key, or runs load(), caches it for ttlSeconds under tags. */

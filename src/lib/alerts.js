@@ -1,6 +1,8 @@
 import { cached, TAGS } from "./cache";
 import { customerBalances, query, stockLevels } from "./db";
-import { inr, qty } from "./format";
+import { inr, qty, shiftDate, todayISO } from "./format";
+import { EWB_INTER_STATE_LIMIT } from "./gst.mjs";
+import { permitBalances } from "./royalty";
 
 const DELAY_DAYS = 2;       // a booked order waiting longer than this
 const OVERDUE_DAYS = 30;    // a balance with no money received for this long
@@ -8,13 +10,16 @@ const VARIANCE_PCT = 2;     // stock counts are expected to land within about 1â
 const UNUSUAL_TIMES = 3;    // an expense this many times the usual for its type
 const UNUSUAL_MIN_SAMPLES = 5;
 const SERVICE_DAYS = 7;
+const CASH_DAYS = 7;        // how far back a short or over cash count stays on the list
+const PERMIT_PCT = 90;      // warn when a permit is this far used
+const PERMIT_DAYS = 15;     // and this close to its end date
 
 // Everything that needs a person, worked out from the records. Language-neutral, so it can be
 // cached and worded by describeAlert on the way out.
 export function getAlerts(companyId) {
   const cid = Number(companyId);
-  return cached(`alerts:${cid}`, { tags: [TAGS.orders, TAGS.payments, TAGS.expenses, TAGS.customers, TAGS.stock, TAGS.vehicles], ttl: 60 }, async () => {
-    const [stock, delayed, overdue, credit, counts, expenses, service] = await Promise.all([
+  return cached(`alerts:${cid}`, { tags: [TAGS.orders, TAGS.payments, TAGS.expenses, TAGS.customers, TAGS.stock, TAGS.vehicles, TAGS.cash], ttl: 60 }, async () => {
+    const [stock, delayed, overdue, credit, counts, expenses, service, cashGaps, cashOpen, ewayDue, passMissing, permits] = await Promise.all([
       query(stockLevels(cid)),
       query(
         `SELECT o.id, c.name, DATEDIFF(NOW(), o.booked_at) AS days
@@ -60,6 +65,30 @@ export function getAlerts(companyId) {
          HAVING next_due <= CURDATE() + INTERVAL ${SERVICE_DAYS} DAY
          ORDER BY next_due`,
       ),
+      query(
+        `SELECT c.close_date, c.difference, s.name AS site FROM cash_closings c JOIN sites s ON s.id = c.site_id
+         WHERE c.company_id = ${cid} AND c.difference <> 0 AND c.close_date >= CURDATE() - INTERVAL ${CASH_DAYS} DAY
+         ORDER BY c.close_date DESC`,
+      ),
+      // Only sites that have started closing; a company that doesn't use it is never nagged.
+      query(
+        `SELECT s.name AS site, MAX(c.close_date) AS last FROM cash_closings c JOIN sites s ON s.id = c.site_id
+         WHERE c.company_id = ${cid} AND s.active = 1 GROUP BY s.id, s.name
+         HAVING last < CURDATE() - INTERVAL 1 DAY`,
+      ),
+      query(
+        `SELECT i.id, i.number, i.total FROM invoices i JOIN companies c ON c.id = i.company_id
+         WHERE i.company_id = ${cid} AND i.status = 'issued' AND i.ewb_no IS NULL AND i.invoice_date >= CURDATE() - INTERVAL 30 DAY
+           AND i.total > IF(LEFT(i.supplier_gstin, 2) = i.place_of_supply, c.ewb_intra_limit, ${EWB_INTER_STATE_LIMIT})
+         ORDER BY i.invoice_date, i.id`,
+      ),
+      query(
+        `SELECT o.id, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+         WHERE o.company_id = ${cid} AND o.status = 'delivered' AND o.royalty_amount IS NOT NULL AND o.pass_no IS NULL
+           AND o.dispatch_time >= NOW() - INTERVAL 30 DAY
+         ORDER BY o.dispatch_time`,
+      ),
+      permitBalances(cid),
     ]);
     return [
       ...stock.filter((m) => m.on_hand < 0).map((m) => ({ kind: "negative", tone: "danger", href: `/stock/${m.id}`, name: m.name, qty: m.on_hand, unit: m.unit })),
@@ -70,6 +99,12 @@ export function getAlerts(companyId) {
       ...overdue.map((c) => ({ kind: "overdue", tone: "danger", href: `/customers/${c.id}`, name: c.name, amount: c.outstanding, days: c.days })),
       ...expenses.map((e) => ({ kind: "expense", tone: "warn", href: "/expenses", category: e.category, amount: e.amount, usual: e.usual, date: e.expense_date })),
       ...service.map((v) => ({ kind: "service", tone: "warn", href: "/vehicles", name: v.number, date: v.next_due })),
+      ...cashGaps.map((c) => ({ kind: c.difference < 0 ? "cashShort" : "cashOver", tone: "danger", href: `/cash?date=${c.close_date}`, name: c.site, amount: Math.abs(c.difference), date: c.close_date })),
+      ...cashOpen.map((c) => ({ kind: "cashOpen", tone: "warn", href: "/cash", name: c.site, date: c.last })),
+      ...ewayDue.map((i) => ({ kind: "eway", tone: "danger", href: `/invoices/${i.id}`, name: i.number, amount: i.total })),
+      ...passMissing.map((o) => ({ kind: "pass", tone: "warn", href: `/deliveries/${o.id}`, id: o.id, name: o.name })),
+      ...permits.filter((p) => p.used * 100 >= p.qty_allowed * PERMIT_PCT).map((p) => ({ kind: "permitUsed", tone: "danger", href: "/royalty", name: p.permit_no, pct: (p.used * 100) / p.qty_allowed })),
+      ...permits.filter((p) => p.valid_to <= shiftDate(todayISO(), PERMIT_DAYS)).map((p) => ({ kind: "permitEnding", tone: "warn", href: "/royalty", name: p.permit_no, date: p.valid_to })),
     ];
   });
 }

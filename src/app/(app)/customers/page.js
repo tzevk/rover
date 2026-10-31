@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BadgeIndianRupee, Contact, HandCoins, Search, Users, UserPlus, Wallet } from "lucide-react";
+import Phone from "@/components/Phone";
 import ActionForm from "@/components/ActionForm";
 import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import SubmitButton from "@/components/SubmitButton";
@@ -83,7 +84,7 @@ export default async function CustomersPage({ searchParams }) {
                 {customers.map((c) => (
                   <tr key={c.id}>
                     <td><Link className="cell-link" href={`/customers/${c.id}`}>{c.name}</Link></td>
-                    <td className="nowrap">{c.phone || "—"}</td>
+                    <td className="nowrap">{c.phone ? <Phone number={c.phone} /> : "—"}</td>
                     <td className="muted">{c.address || "—"}</td>
                     <td className="num">{c.orders}</td>
                     <td className="num">{inr(c.billed)}</td>

@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth";
 import { getStock } from "@/lib/db";
 import { qty } from "@/lib/format";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
+import { currentSite } from "@/lib/sites";
 
 export const generateMetadata = pageTitle("nav.stock");
 
@@ -16,7 +17,7 @@ export default async function StockPage() {
   const user = await requireUser();
   const { t } = await getI18n();
   const isAdmin = user.role === "admin";
-  const all = await getStock(user.company_id);
+  const all = await getStock(user.company_id, await currentSite(user));
   const materials = all.filter((m) => m.active);
   const low = materials.filter((m) => m.low_stock > 0 && m.on_hand <= m.low_stock);
 

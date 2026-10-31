@@ -1,7 +1,11 @@
 import LegalPage from "@/components/legal/LegalPage";
 import { SITE } from "@/lib/site";
 
-export const metadata = { title: "Privacy Policy", alternates: { canonical: "/privacy" } };
+export const metadata = {
+  title: "Privacy Policy",
+  description: "What R.K. Enterprises stores, why it's stored and who handles it, including under India's Digital Personal Data Protection Act, 2023.",
+  alternates: { canonical: "/privacy" },
+};
 
 export default function Privacy() {
   return (
@@ -13,6 +17,8 @@ export default function Privacy() {
       <p>Only to provide the service: showing your records to your team, keeping you signed in, and taking payment. We don't sell personal data.</p>
       <h2>Cookies</h2>
       <p>We use cookies to keep you signed in and to remember your language, theme and sidebar choices. We don't use advertising cookies.</p>
+      <h2>On your device</h2>
+      <p>So the gate screen can work without a connection, the browser keeps customer names and phone numbers, material rates, vehicle numbers and booked orders on that device, along with any entries waiting to be sent. Signing out removes the stored names and rates. Entries not yet sent stay on the device until they've been sent or discarded.</p>
       <h2>Who else handles data</h2>
       <p>Our hosting and database providers store the data. Our payment provider processes payments and we never see your card details.</p>
       <h2>Your records about other people</h2>

@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, BadgeIndianRupee, BookText, Clock, HandCoins, IdCard, Save, Trash2, UserRound, Wallet } from "lucide-react";
 import ActionForm from "@/components/ActionForm";
 import ConfirmButton from "@/components/ConfirmButton";
+import Phone from "@/components/Phone";
 import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import SubmitButton from "@/components/SubmitButton";
 import { deletePayment, recordPayment, updateCustomer } from "@/app/actions/customers";
 import { requireAdmin } from "@/lib/auth";
 import { customerBalances, query } from "@/lib/db";
-import { inr, qty, todayISO } from "@/lib/format";
+import { inr, PAY_MODES, qty, todayISO } from "@/lib/format";
+import { STATES } from "@/lib/gst.mjs";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
 
 export const generateMetadata = pageTitle("customer.title");
@@ -18,7 +20,11 @@ export default async function CustomerPage({ params }) {
   const { t, fmtDate, fmtDateTime } = await getI18n();
   const id = Number((await params).id);
   const [[customer], entries, pending] = await Promise.all([
-    query(`SELECT * FROM (${customerBalances(cid)}) b WHERE id = ?`, [id]),
+    query(
+      `SELECT b.*, x.gstin, x.state_code, x.place, x.pincode FROM (${customerBalances(cid)}) b
+       JOIN customers x ON x.id = b.id WHERE b.id = ?`,
+      [id],
+    ),
     query(
       `SELECT 'delivery' AS kind, id AS ref, delivered_at AS at, total_amount AS debit, paid_amount AS credit,
               delivered_qty, rate, vehicle_number, NULL AS note
@@ -44,7 +50,7 @@ export default async function CustomerPage({ params }) {
       <Link href="/customers" className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }}>
         <ArrowLeft size={14} /> {t("customer.back")}
       </Link>
-      <PageHead icon={UserRound} eyebrow={t("common.customer")} title={customer.name} subtitle={[customer.phone, customer.address].filter(Boolean).join(" · ") || t("customer.noContact")} />
+      <PageHead icon={UserRound} eyebrow={t("common.customer")} title={customer.name} subtitle={customer.phone || customer.address ? <><Phone number={customer.phone} />{customer.phone && customer.address && " · "}{customer.address}</> : t("customer.noContact")} />
 
       <div className="stats">
         <div className="card stat accent">
@@ -64,6 +70,11 @@ export default async function CustomerPage({ params }) {
             <div className="fields">
               <label className="field"><span>{t("common.amountRs")}</span><input className="input num" name="amount" type="number" min="0.01" step="0.01" inputMode="decimal" required /></label>
               <label className="field"><span>{t("common.date")}</span><input className="input" name="paid_on" type="date" defaultValue={todayISO()} max={todayISO()} required /></label>
+              <label className="field"><span>{t("cash.paidBy")}</span>
+                <select className="select" name="mode" defaultValue="cash">
+                  {PAY_MODES.map((m) => <option key={m} value={m}>{t(`pay.${m}`)}</option>)}
+                </select>
+              </label>
             </div>
             <label className="field"><span>{t("common.note")}</span><input className="input" name="note" placeholder={t("customer.notePlaceholder")} /></label>
             <div><SubmitButton className="btn btn-accent"><HandCoins size={16} /> {t("customer.recordPaymentBtn")}</SubmitButton></div>
@@ -80,6 +91,19 @@ export default async function CustomerPage({ params }) {
               <label className="field"><span>{t("common.phone")}</span><input className="input" name="phone" type="tel" defaultValue={customer.phone ?? ""} /></label>
             </div>
             <label className="field"><span>{t("common.address")}</span><input className="input" name="address" defaultValue={customer.address ?? ""} /></label>
+            <div className="fields">
+              <label className="field"><span>GSTIN</span><input className="input" name="gstin" maxLength={15} defaultValue={customer.gstin ?? ""} style={{ textTransform: "uppercase" }} /><small>{t("customer.gstinHint")}</small></label>
+              <label className="field"><span>{t("customer.state")}</span>
+                <select className="select" name="state_code" defaultValue={customer.state_code ?? ""}>
+                  <option value="">{t("customer.sameState")}</option>
+                  {Object.entries(STATES).map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="fields fields-pair">
+              <label className="field"><span>{t("customer.place")}</span><input className="input" name="place" maxLength={60} defaultValue={customer.place ?? ""} /></label>
+              <label className="field"><span>{t("company.pincode")}</span><input className="input" name="pincode" inputMode="numeric" maxLength={6} defaultValue={customer.pincode ?? ""} /></label>
+            </div>
             <label className="field"><span>{t("customer.creditLimit")}</span><input className="input num" type="number" name="credit_limit" min="0" step="0.01" inputMode="decimal" defaultValue={customer.credit_limit ?? ""} /><small>{t("customer.creditHint")}</small></label>
             <div><SubmitButton className="btn"><Save size={16} /> {t("customer.saveDetails")}</SubmitButton></div>
           </ActionForm>

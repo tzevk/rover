@@ -7,3 +7,10 @@ export const SITE = {
   email: process.env.CONTACT_EMAIL || "",
   signupOpen: process.env.SIGNUP_ENABLED === "1", // internal platform: off unless deliberately enabled
 };
+
+// "919876543210" → "+91 98765 43210". Anything else is shown as it was entered.
+export function phoneLabel(number) {
+  const digits = String(number ?? "").replace(/\D/g, "");
+  return /^91\d{10}$/.test(digits) ? `+91 ${digits.slice(2, 7)} ${digits.slice(7)}` : String(number ?? "");
+}
+export const telHref = (number) => `tel:+${String(number ?? "").replace(/\D/g, "")}`;

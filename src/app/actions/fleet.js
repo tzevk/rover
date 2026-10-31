@@ -7,6 +7,7 @@ import { invalidate, TAGS } from "@/lib/cache";
 import { audit, cleanVehicle, saveVehicleNumber, transaction } from "@/lib/db";
 import { inr, todayISO } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
+import { currentSite } from "@/lib/sites";
 import { isDate, num, text } from "@/lib/validate";
 
 const optionalKg = (v) => { if (!v) return null; const n = num(v); return n > 0 ? n : NaN; };
@@ -51,12 +52,14 @@ export const addFuel = guarded("addFuel", async (_prev, formData) => {
   if (!(amount > 0)) return { error: t("common.amountPositive") };
   if (Number.isNaN(odometer) || odometer < 0) return { error: t("vehicles.odometerRule") };
   const rid = requestId(formData);
+  const site = await currentSite(user);
+  const paidFrom = formData.get("paid_from") === "bank" ? "bank" : "cash";
   const result = await transaction(async (tx) => {
     const vehicle = await ownVehicle(tx, user, vehicleId);
     if (!vehicle) return { error: t("vehicles.notFound") };
     const expense = await tx.query(
-      "INSERT INTO expenses (company_id, expense_date, category, amount, description, created_by, request_id) VALUES (?, ?, 'fuel', ?, ?, ?, ?)",
-      [user.company_id, date, amount, `${vehicle.number} · ${litres} L`, user.id, rid],
+      "INSERT INTO expenses (company_id, site_id, expense_date, category, amount, paid_from, description, created_by, request_id) VALUES (?, ?, ?, 'fuel', ?, ?, ?, ?, ?)",
+      [user.company_id, site.id, date, amount, paidFrom, `${vehicle.number} · ${litres} L`, user.id, rid],
     );
     const res = await tx.query(
       "INSERT INTO fuel_logs (company_id, vehicle_id, log_date, litres, amount, odometer_km, expense_id, created_by, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -87,12 +90,14 @@ export const addMaintenance = guarded("addMaintenance", async (_prev, formData) 
   if (!(amount > 0)) return { error: t("common.amountPositive") };
   if (nextDue && !isDate(nextDue)) return { error: t("common.pickValidDate") };
   const rid = requestId(formData);
+  const site = await currentSite(user);
+  const paidFrom = formData.get("paid_from") === "bank" ? "bank" : "cash";
   const result = await transaction(async (tx) => {
     const vehicle = await ownVehicle(tx, user, vehicleId);
     if (!vehicle) return { error: t("vehicles.notFound") };
     const expense = await tx.query(
-      "INSERT INTO expenses (company_id, expense_date, category, amount, description, created_by, request_id) VALUES (?, ?, 'maintenance', ?, ?, ?, ?)",
-      [user.company_id, date, amount, `${vehicle.number} · ${description}`.slice(0, 255), user.id, rid],
+      "INSERT INTO expenses (company_id, site_id, expense_date, category, amount, paid_from, description, created_by, request_id) VALUES (?, ?, ?, 'maintenance', ?, ?, ?, ?, ?)",
+      [user.company_id, site.id, date, amount, paidFrom, `${vehicle.number} · ${description}`.slice(0, 255), user.id, rid],
     );
     const res = await tx.query(
       "INSERT INTO maintenance_logs (company_id, vehicle_id, log_date, description, amount, next_due, expense_id, created_by, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",

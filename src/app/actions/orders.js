@@ -6,7 +6,10 @@ import { invalidate, TAGS } from "@/lib/cache";
 import { guarded, requestId } from "@/lib/action";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { audit, cleanVehicle, saveVehicleNumber, transaction } from "@/lib/db";
+import { completeDelivery } from "@/lib/dispatch";
+import { flash } from "@/lib/flash";
 import { inr } from "@/lib/format";
+import { currentSite } from "@/lib/sites";
 import { dateTimeLocal, num, round2, text } from "@/lib/validate";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -23,6 +26,7 @@ export const createOrder = guarded("createOrder", async (_prev, formData) => {
   if (!customerId) return { error: t("action.chooseCustomer") };
   if (!(orderedQty > 0)) return { error: t("action.qtyPositive") };
   if (!(rate > 0)) return { error: t("action.ratePositive") };
+  const site = await currentSite(user);
 
   const result = await transaction(async (tx) => {
     const [customer] = await tx.query("SELECT name FROM customers WHERE id = ? AND company_id = ?", [customerId, user.company_id]);
@@ -31,9 +35,9 @@ export const createOrder = guarded("createOrder", async (_prev, formData) => {
     const materials = await tx.query("SELECT id FROM materials WHERE company_id = ? AND active = 1", [user.company_id]);
     if (materials.length && !materials.some((m) => m.id === materialId)) return { error: t("action.chooseMaterial") };
     const res = await tx.query(
-      `INSERT INTO orders (company_id, customer_id, material_id, ordered_qty, rate, total_amount, booked_by, request_id)
-       VALUES (?, ?, ?, ?, ?, ROUND(? * ?, 2), ?, ?)`,
-      [user.company_id, customerId, materialId, orderedQty, rate, orderedQty, rate, user.id, requestId(formData)],
+      `INSERT INTO orders (company_id, site_id, customer_id, material_id, ordered_qty, rate, total_amount, booked_by, request_id)
+       VALUES (?, ?, ?, ?, ?, ?, ROUND(? * ?, 2), ?, ?)`,
+      [user.company_id, site.id, customerId, materialId, orderedQty, rate, orderedQty, rate, user.id, requestId(formData)],
     );
     const [{ total_amount: total }] = await tx.query("SELECT total_amount FROM orders WHERE id = ?", [res.insertId]);
     await audit(tx, user, "order.book", "order", res.insertId, { customerId, materialId, orderedQty, rate, total });
@@ -89,34 +93,19 @@ export const deliverOrder = guarded("deliverOrder", async (_prev, formData) => {
   if (!(deliveredQty > 0)) return { error: t("action.deliveredPositive") };
   if (!(paid >= 0)) return { error: t("action.paidNegative") };
 
-  const result = await transaction(async (tx) => {
-    // Lock the row so two people can't complete the same order at once.
-    const [order] = await tx.query("SELECT status FROM orders WHERE id = ? AND company_id = ? FOR UPDATE", [id, user.company_id]);
-    if (!order) return { error: t("action.orderNotFound") };
-    if (order.status !== "pending") return { error: t("action.orderClosed") };
-
-    const vehicleId = await saveVehicleNumber(tx, user.company_id, vehicle, tare);
-    const net = gross === null ? null : round2(gross - tare);
-    await tx.query(
-      `UPDATE orders SET status = 'delivered', vehicle_number = ?, vehicle_id = ?, arrival_time = ?, dispatch_time = ?,
-         delivered_qty = ?, total_amount = ROUND(? * rate, 2), paid_amount = ?,
-         balance_amount = ROUND(? * rate, 2) - ?, gross_kg = ?, tare_kg = ?, net_kg = ?, pass_no = ?,
-         delivered_by = ?, delivered_at = NOW()
-       WHERE id = ?`,
-      [vehicle, vehicleId, arrival, dispatch, deliveredQty, deliveredQty, paid, deliveredQty, paid, gross, tare, net, passNo || null, user.id, id],
-    );
-    const [after] = await tx.query("SELECT total_amount, balance_amount FROM orders WHERE id = ?", [id]);
-    await audit(tx, user, "order.deliver", "order", id, {
-      vehicle, arrival, dispatch, deliveredQty, gross, tare, net, passNo, paid, total: after.total_amount, balance: after.balance_amount,
-    });
-    return { ok: true };
-  });
+  const result = await transaction((tx) => completeDelivery(tx, user, {
+    id, vehicle, arrival, dispatch, deliveredQty, paid, gross, tare, passNo,
+    paidMode: String(formData.get("paid_mode") || "cash"),
+    net: gross === null ? null : round2(gross - tare),
+    materialId: Number(formData.get("material_id")) || null,
+    placeOfSupply: String(formData.get("place_of_supply") || ""),
+  }, t));
   if (!result.ok) return result;
 
   invalidate(TAGS.orders, TAGS.vehicles);
 
   revalidatePath("/", "layout");
-  redirect(`/deliveries?done=${id}`);
+  redirect(`/deliveries?done=${id}${result.invoice ? `&invoice=${result.invoice.id}` : ""}`);
 });
 
 export const cancelOrder = guarded("cancelOrder", async (id) => {
@@ -126,12 +115,14 @@ export const cancelOrder = guarded("cancelOrder", async (id) => {
     if (res.affectedRows) await audit(tx, user, "order.cancel", "order", id);
   });
   invalidate(TAGS.orders);
+  await flash("flash.orderCancelled", { id });
   revalidatePath("/", "layout");
   redirect("/deliveries");
 }, { inPage: true });
 
 // Undo a delivery entered by mistake: the order goes back to pending, the customer's balance
-// reverses automatically, and the old values are kept in the activity log.
+// reverses automatically, and the old values are kept in the activity log. Its invoice is
+// cancelled but keeps its number, because a tax invoice can't simply vanish from the series.
 export const reopenOrder = guarded("reopenOrder", async (id) => {
   const user = await requireAdmin();
   await transaction(async (tx) => {
@@ -140,10 +131,15 @@ export const reopenOrder = guarded("reopenOrder", async (id) => {
     await tx.query(
       `UPDATE orders SET status = 'pending', vehicle_number = NULL, vehicle_id = NULL, arrival_time = NULL, dispatch_time = NULL,
          delivered_qty = NULL, paid_amount = NULL, balance_amount = NULL, delivered_by = NULL, delivered_at = NULL,
-         gross_kg = NULL, tare_kg = NULL, net_kg = NULL, pass_no = NULL,
+         gross_kg = NULL, tare_kg = NULL, net_kg = NULL, pass_no = NULL, royalty_amount = NULL, paid_mode = NULL,
+         tax_amount = 0, tax_inclusive = 0, place_of_supply = NULL, offline_ref = NULL, tally_exported_at = NULL,
          total_amount = ROUND(ordered_qty * rate, 2)
        WHERE id = ?`,
       [id],
+    );
+    await tx.query(
+      "UPDATE invoices SET status = 'cancelled', cancelled_at = NOW(), cancelled_by = ? WHERE order_id = ? AND company_id = ? AND status = 'issued'",
+      [user.id, id, user.company_id],
     );
     await audit(tx, user, "order.reopen", "order", id, {
       previous: {
@@ -154,6 +150,7 @@ export const reopenOrder = guarded("reopenOrder", async (id) => {
     });
   });
   invalidate(TAGS.orders);
+  await flash("flash.orderReopened", { id });
   revalidatePath("/", "layout");
   redirect(`/deliveries/${id}`);
 }, { inPage: true });

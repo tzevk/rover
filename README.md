@@ -15,6 +15,10 @@ npm run db:restore -- backups/<file>.sql.gz --into query --overwrite   # replace
 
 Run `npm test` before every change goes live. Run `npm run db:backup` daily (or schedule it).
 
+Live runs MariaDB, so test on it too: `brew install mariadb@10.11`, then `MYSQLD=/opt/homebrew/opt/mariadb@10.11/bin/mariadbd npm test`.
+
+**Going live with a database change:** run `npm run db:backup`, then `npm run db:migrate` with the owner login, and only then push. A push to `master` deploys straight away, and new code reading tables that don't exist yet takes most of the app down.
+
 ## Safeguards
 
 | Layer | Guarantee |
@@ -66,6 +70,31 @@ Billing uses Razorpay Payment Links; each payment adds 30 days. Set `PLAN_PRICE_
 | Fuel and repairs | Each entry also creates its expense in the same transaction. Deleting that expense removes the record too. |
 | Needs attention | `src/lib/alerts.js`, with its thresholds at the top of the file. |
 | Old data | Orders from before materials existed have no material and don't affect stock. A company with no materials keeps the original flow. |
+
+## Billing and compliance
+
+| Area | How it works |
+|---|---|
+| GST invoices | Off until an owner switches them on in Company. Every delivery then issues an invoice in the same transaction (`src/lib/dispatch.js`). The arithmetic is in `src/lib/gst.mjs`, in whole paise. |
+| Invoice numbers | One series per GSTIN and financial year, in `invoice_counters`. The row stays locked until the delivery commits, so numbers can't repeat and a failed save leaves no gap. |
+| Issued invoices | Everything printed is copied into `invoices`, so later edits can't change one. Reopening a delivery cancels its invoice and keeps the number. |
+| Tax rates | Per material, defaulting to HSN 2517 at 5%. These are defaults: an accountant should confirm them. |
+| GSTR-1 | `/gst` sorts a month into CSV working sheets. They're working papers, not the portal's upload format, and nothing is filed from here. |
+| E-way bills | `src/lib/ewaybill.mjs` writes the JSON for the portal's Generate Bulk screen, whose key names differ from the portal's API. The bill itself is generated on the portal and its number typed back in. |
+| Royalty | Passes come from the State's portal, which has no public API we could find. `/royalty` keeps the register, stops a pass being used twice and tracks permit quantities. |
+| Tally | `src/lib/tally.mjs` writes UTF-16 XML for TallyPrime's Import screens. A cloud server can't reach Tally on an office computer, so this works by file. A person confirms each import, which is what stops it being sent twice. |
+| Daily cash | `/cash` works out what should be in the box from cash records only. Days nobody closed roll into the next closing. Figures are kept as counted, so a later edit shows up as a change. |
+| Sites | Every company has at least one, and all records carry `site_id`. Stock, deliveries, production and cash follow the chosen site; opening stock sits at the first site. Stock moved between sites isn't tracked. |
+
+**Not built:** e-invoicing (IRN), credit notes, and live links to government portals.
+
+## Offline at the gate
+
+`public/sw.js` keeps `/gate` and its scripts on the device, and only those: signed-in pages are never cached. `src/lib/offline.js` keeps a snapshot of names and rates, and a queue of entries, in IndexedDB.
+
+Entries are saved to the device first, then sent to `/api/offline/sync` in order. Each carries its own id in `orders.offline_ref`, so a repeat can never make a second delivery. Sync uses the same `completeDelivery` as the online form. An entry leaves the queue only once the server confirms it. A refused entry stays on the device with the reason, to retry or discard.
+
+A device must sign in once with a connection first. Invoice numbers are issued on reaching the server, because two offline devices can't safely share a series, so the gate slip isn't a tax invoice.
 
 ## Who sees what
 

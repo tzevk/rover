@@ -41,6 +41,13 @@ export default async function ExpensesPage({ searchParams }) {
               <span>{t("common.amountRs")}</span>
               <input className="input num" type="number" name="amount" min="0.01" step="0.01" inputMode="decimal" required />
             </label>
+            <label className="field">
+              <span>{t("cash.paidFrom")}</span>
+              <select className="select" name="paid_from" defaultValue="cash">
+                <option value="cash">{t("pay.cash")}</option>
+                <option value="bank">{t("pay.bank")}</option>
+              </select>
+            </label>
           </div>
           <label className="field">
             <span>{t("common.details")}</span>

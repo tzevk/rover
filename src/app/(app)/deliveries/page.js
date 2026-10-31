@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { CheckCircle2, CircleCheckBig, ListFilter, Search, Truck } from "lucide-react";
+import Phone from "@/components/Phone";
 import { EmptyState, PageHead, Section } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { inr, qty } from "@/lib/format";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
+import { currentSite } from "@/lib/sites";
 
 export const generateMetadata = pageTitle("nav.deliveries");
 
 export default async function DeliveriesPage({ searchParams }) {
-  const { company_id: cid } = await requireUser();
+  const user = await requireUser();
+  const cid = user.company_id;
+  const site = await currentSite(user);
   const { t, fmtDateTime } = await getI18n();
-  const { q = "", done } = await searchParams;
+  const { q = "", done, invoice } = await searchParams;
   const like = `%${q.trim()}%`;
 
   // Only pending orders are ever listed here — completed ones live in the Admin's order history.
@@ -21,7 +25,7 @@ export default async function DeliveriesPage({ searchParams }) {
      LEFT JOIN materials m ON m.id = o.material_id
      JOIN customers c ON c.id = o.customer_id
      LEFT JOIN users u ON u.id = o.booked_by
-     WHERE o.company_id = ${cid} AND o.status = 'pending' AND (c.name LIKE ? OR c.phone LIKE ? OR o.id = ?)
+     WHERE o.company_id = ${cid} AND o.site_id = ${site.id} AND o.status = 'pending' AND (c.name LIKE ? OR c.phone LIKE ? OR o.id = ?)
      ORDER BY o.booked_at`,
     [like, like, Number(q) || 0],
   );
@@ -32,7 +36,10 @@ export default async function DeliveriesPage({ searchParams }) {
 
       {done && (
         <div className="alert alert-ok" style={{ marginBottom: 16 }}>
-          <CheckCircle2 size={18} /> <span>{t("deliveries.done", { id: done })} <Link href={`/deliveries/${Number(done)}/challan`} className="inline-link">{t("challan.print")}</Link></span>
+          <CheckCircle2 size={18} /> <span>
+            {t("deliveries.done", { id: done })} <Link href={`/deliveries/${Number(done)}/challan`} className="inline-link">{t("challan.print")}</Link>
+            {invoice && <> · <Link href={`/invoices/${Number(invoice)}`} className="inline-link">{t("invoice.print")}</Link></>}
+          </span>
         </div>
       )}
 
@@ -69,7 +76,7 @@ export default async function DeliveriesPage({ searchParams }) {
                     <td className="nowrap"><span className="badge badge-pending">#{o.id}</span></td>
                     <td>
                       <strong>{o.name}</strong>
-                      <div className="muted" style={{ fontSize: 12 }}>{[o.material, o.phone].filter(Boolean).join(" · ") || "—"}</div>
+                      <div className="muted" style={{ fontSize: 12 }}>{o.material}{o.material && o.phone && " · "}<Phone number={o.phone} />{!o.material && !o.phone && "—"}</div>
                       {o.arrival_time && <span className="badge badge-admin">{t("deliveries.atGate", { vehicle: o.vehicle_number })}</span>}
                     </td>
                     <td className="num" data-label={t("common.qty")}>{qty(o.ordered_qty)}</td>

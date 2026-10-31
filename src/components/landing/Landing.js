@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import Logo from "@/components/Logo";
+import ContactLinks from "@/components/ContactLinks";
+import SiteMenu from "./SiteMenu";
 import { SITE } from "@/lib/site";
 import { CONTENT } from "./content";
 import { SEO_PAGES } from "./seo-pages";
@@ -56,9 +58,16 @@ export default function Landing({ lang }) {
           <div>
             <a href="#platform" className="nav-wide">{c.nav.platform}</a>
             <a href="#modules" className="nav-wide">{c.nav.modules}</a>
-            <Link href={c.nav.otherPath} hrefLang={c.nav.otherLang} lang={c.nav.otherLang}>{c.nav.other}</Link>
-            <Link href="/login">{c.nav.signIn}</Link>
+            <Link href={c.nav.otherPath} hrefLang={c.nav.otherLang} lang={c.nav.otherLang} className="nav-wide">{c.nav.other}</Link>
+            <Link href="/login" className="nav-wide">{c.nav.signIn}</Link>
             <a href="#demo" className="lp-nav-in">{c.nav.demo}</a>
+            <SiteMenu labels={c.nav} links={[
+              { href: "#platform", label: c.nav.platform },
+              { href: "#modules", label: c.nav.modules },
+              { href: c.nav.otherPath, label: c.nav.other, lang: c.nav.otherLang },
+              { href: "/login", label: c.nav.signIn },
+              { href: "#demo", label: c.nav.demo },
+            ]} />
           </div>
         </header>
 
@@ -145,7 +154,7 @@ export default function Landing({ lang }) {
                   <div className="panel">
                     <strong>{c.intel.soonHead} <Tag c={c} s="available" /></strong>
                     <ul>{c.intel.soon.map((s) => <li key={s}>{s}</li>)}</ul>
-                    <small>{c.intel.later}</small>
+                    {c.intel.later && <small>{c.intel.later}</small>}
                   </div>
                 </div>
               </section>
@@ -172,6 +181,7 @@ export default function Landing({ lang }) {
 
             <footer className="lp-foot">
               <span>© {new Date().getFullYear()} {SITE.name}</span>
+              <ContactLinks />
               <nav aria-label={c.capabilities}>{Object.entries(SEO_PAGES).map(([s, p]) => <Link key={s} href={`/${s}`}>{p.h1}</Link>)}</nav>
               <span><Link href="/terms">{c.legal[0]}</Link> · <Link href="/privacy">{c.legal[1]}</Link></span>
             </footer>
