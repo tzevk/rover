@@ -1,9 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
-import Logo from "@/components/Logo";
 import { Action, Headline, Rise } from "./Motion";
 
 const Scene = dynamic(() => import("./Scene"), { ssr: false }); // only downloaded if it will run
@@ -20,12 +19,18 @@ const hold = (t) => { const k = Math.min(1, Math.max(0, (t - 0.4) / 0.6)); retur
 
 // Owns the scroll. `live.s` is the place in the journey: 0 the opening, 1 to 8 the steps. The scene
 // follows it; the record beside the scene is the one thing that never changes place.
-export default function Experience({ descriptor, headline, sub, cta, journey, sample, children }) {
+export default function Experience({ descriptor, headline, sub, cta, journey, children }) {
   const root = useRef(null), pin = useRef(null);
-  const live = useRef({ s: 0, x: 0, y: 0, turn: 0, pin });
+  const live = useRef({ s: 0, x: 0, y: 0, turn: 0, pin, journey, onScreen: false });
   const [stage, setStage] = useState(null);
   const [active, setActive] = useState(true);
   const count = journey.steps.length;
+
+  const jump = useCallback((index) => {
+    const run = root.current.querySelector(".journey-run");
+    const top = run.getBoundingClientRect().top + scrollY, f = index === count - 1 ? count : index + 1.1;
+    scrollTo({ top: top + (f / count) * (run.offsetHeight - innerHeight), behavior: "smooth" });
+  }, [count]);
 
   useEffect(() => {
     const el = root.current, run = el.querySelector(".journey-run"), l = live.current;
@@ -55,11 +60,16 @@ export default function Experience({ descriptor, headline, sub, cta, journey, sa
       if (e.pointerType === "touch") return;
       l.x = (e.clientX / innerWidth) * 2 - 1;
       l.y = 1 - (e.clientY / innerHeight) * 2;
+      l.onScreen = Boolean(e.target.closest?.(".stage"));
     };
+    l.setPointer = (on) => { el.querySelector(".stage").style.cursor = on ? "pointer" : ""; };
     // Dragging the scene turns the view round the product. It swings back on release.
     const canvasArea = el.querySelector(".stage");
     let turning = null;
-    const onDown = (e) => { turning = e.clientX - l.turn * innerWidth; };
+    const onDown = (e) => {
+      if (l.hovered >= 0) { jump(l.hovered); return; }
+      turning = e.clientX - l.turn * innerWidth;
+    };
     const onDrag = (e) => { if (turning !== null) l.turn = Math.max(-0.5, Math.min(0.5, (e.clientX - turning) / innerWidth)); };
     const onUp = () => { turning = null; l.turn = 0; };
     read();
@@ -80,13 +90,7 @@ export default function Experience({ descriptor, headline, sub, cta, journey, sa
       removeEventListener("pointerup", onUp);
       canvasArea.removeEventListener("pointerdown", onDown);
     };
-  }, [count]);
-
-  const jump = (index) => {
-    const run = root.current.querySelector(".journey-run");
-    const top = run.getBoundingClientRect().top + scrollY, f = index === count - 1 ? count : index + 1.1;
-    scrollTo({ top: top + (f / count) * (run.offsetHeight - innerHeight), behavior: "smooth" });
-  };
+  }, [count, jump]);
 
   return (
     <div ref={root} className="exp">
@@ -96,12 +100,12 @@ export default function Experience({ descriptor, headline, sub, cta, journey, sa
           <div className="stage" aria-hidden="true">
             {stage && <Scene live={live} mobile={stage.mobile} active={active} />}
           </div>
-          <div className="dip" aria-hidden="true" />
-          <div className="hero">
+                    <div className="hero">
             <Rise delay={0.1}><p className="mono">{descriptor}</p></Rise>
             <Headline text={headline} />
             <Rise delay={0.8} className="hero-foot">
               <p>{sub}</p>
+              <p className="hero-hint">{journey.hint}</p>
               <div className="acts">
                 <Action href="#demo">{cta.secondary} <ArrowRight size={17} /></Action>
                 <Action href="#platform" line>{cta.primary}</Action>
@@ -113,23 +117,18 @@ export default function Experience({ descriptor, headline, sub, cta, journey, sa
               <b>{String(i + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}</b>
               <h2>{step.name}</h2>
               <p>{step.line}</p>
+              <em>{step.row}</em>
             </article>
           ))}
-          <aside className="app" aria-label={journey.kicker}>
-            <header><span><Logo size={18} /> R.K. Enterprises</span><span>{journey.head}</span></header>
-            <strong>{journey.kicker}</strong>
-            <em>{journey.product}</em>
+          <nav className="rail" aria-label={journey.kicker}>
             <ol>
               {journey.steps.map((step, i) => (
                 <li key={step.name}>
-                  <button type="button" data-row={i} data-state="next" onClick={() => jump(i)}>
-                    <i /><span>{step.name}</span><small>{step.row}</small>
-                  </button>
+                  <button type="button" data-row={i} data-state="next" onClick={() => jump(i)}><i /><span>{step.name}</span></button>
                 </li>
               ))}
             </ol>
-            <footer>{sample}</footer>
-          </aside>
+          </nav>
         </div>
       </section>
       {children}

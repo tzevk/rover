@@ -65,7 +65,7 @@ export default function Landing({ lang }) {
           </div>
         </header>
 
-        <Experience descriptor={c.descriptor} headline={c.headline} sub={c.sub} cta={c.cta} journey={c.journey} sample={c.sample}>
+        <Experience descriptor={c.descriptor} headline={c.headline} sub={c.sub} cta={c.cta} journey={c.journey}>
           <div className="ground">
             <section id="modules" className="block">
               <Rise inView className="head">

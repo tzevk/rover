@@ -1361,7 +1361,7 @@ async function main() {
     check(await rowNow() === "Invoice" && await film.locator("[data-row][data-state='past']").count() === 5, "clicking a row jumps to that step, and earlier steps show as done");
     await scrollTo(1);
     await film.waitForFunction(() => document.querySelector("[data-row='7']").dataset.state === "now", null, { timeout: 25000 }).catch(() => {});
-    check(await rowNow() === "Daily Cash" && (await film.locator(".app").innerText()).includes("₹0 difference"), "the same record ends with the day's cash closed");
+    check(await rowNow() === "Daily Cash" && (await film.locator(".step[data-state='now']").innerText()).includes("₹0 difference"), "the same record ends with the day's cash closed");
     check(!/Patil/.test(await film.locator(".journey-run").innerText()), "no real name is used on the journey");
     await filmBrowser.close();
 

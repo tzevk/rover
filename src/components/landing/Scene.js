@@ -9,7 +9,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { clamp, CUTS, DESK, lerp, RACK, ramp, SHOTS, STREET, TILL } from "./world";
+import { clamp, DESK, lerp, OUTSIDE, PORTALS, RACK, ramp, SCREEN, SHOTS, smooth, STREET, TILL } from "./world";
 
 // One bracket's journey, filmed. The places are photographed panoramas and the objects are 3D scans
 // (Poly Haven, CC0), lit by the same photographs, so they sit in the world the way real things do.
@@ -117,6 +117,59 @@ const radialFade = () => canvasOf(512, 512, (x, w, h) => {
   x.fillRect(0, 0, w, h);
 });
 
+// The tablet's screen. Behind the app is a live view of another part of the business, drawn with the
+// real camera's own perspective, so it behaves like a window and not a picture. As the camera comes
+// in, the row's window opens until the whole screen is that place.
+const SCREEN_VERTEX = "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }";
+const SCREEN_FRAGMENT = /* glsl */ `
+  uniform sampler2D tUI, tWindow; uniform vec2 uRes; uniform vec4 uRect; uniform float uOpen, uGlow;
+  varying vec2 vUv;
+  float box(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
+  void main() {
+    vec3 ui = texture2D(tUI, vUv).rgb;
+    vec3 view = texture2D(tWindow, gl_FragCoord.xy / uRes).rgb * uGlow;
+    vec2 aspect = vec2(1.45, 1.0);
+    vec2 c = mix(uRect.xy, vec2(0.5), uOpen), h = mix(uRect.zw, vec2(0.54), uOpen);
+    float d = box((vUv - c) * aspect, h * aspect, mix(0.022, 0.0, uOpen));
+    gl_FragColor = vec4(mix(view, ui, smoothstep(-0.0015, 0.0015, d)), 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }
+`;
+
+// What the screen shows: the eight steps down the side, a window beside them.
+const WINDOW = { x: 0.385, y: 0.13, w: 0.585, h: 0.82 };
+function drawApp(canvas, journey, now, over, fonts) {
+  const x = canvas.getContext("2d"), W = canvas.width, H = canvas.height, u = W / 1000;
+  x.fillStyle = "#101114";
+  x.fillRect(0, 0, W, H);
+  x.fillStyle = "#ffffff";
+  x.font = `600 ${25 * u}px ${fonts.text}`;
+  x.textBaseline = "alphabetic";
+  x.textAlign = "left";
+  x.fillText("R.K. Enterprises", 34 * u, 58 * u);
+  x.textAlign = "right";
+  x.fillStyle = "#9a9aa2";
+  x.font = `400 ${21 * u}px ${fonts.text}`;
+  x.fillText(`${journey.head}  ·  ${journey.product}`, W - 30 * u, 58 * u);
+  x.textAlign = "left";
+  const top = 92 * u, row = (H - top - 22 * u) / journey.steps.length;
+  journey.steps.forEach((step, i) => {
+    const y = top + i * row, here = i === over;
+    if (here) { x.fillStyle = "rgba(232, 148, 12, 0.2)"; x.beginPath(); x.roundRect(20 * u, y + 3 * u, 330 * u, row - 6 * u, 10 * u); x.fill(); }
+    x.fillStyle = i < now ? "#3fbf72" : here ? "#f5a623" : "#3a3b42";
+    x.beginPath();
+    x.arc(50 * u, y + row / 2, 9 * u, 0, 7);
+    x.fill();
+    x.fillStyle = i <= now || here ? "#ffffff" : "#a5a5ad";
+    x.font = `600 ${25 * u}px ${fonts.text}`;
+    x.fillText(step.name, 76 * u, y + row * 0.46);
+    x.fillStyle = "#8d8d96";
+    x.font = `400 ${17.5 * u}px ${fonts.text}`;
+    x.fillText(step.row.slice(0, 30), 76 * u, y + row * 0.76);
+  });
+}
+
 function bracketShape(w, d) {
   const s = new THREE.Shape(), r = 0.004;
   s.moveTo(-w / 2 + r, -d / 2);
@@ -205,10 +258,12 @@ function Film({ live, mobile, maxDpr }) {
   const steady = useSteadyFrames(maxDpr);
   const sun = useRef(null);
   const set = useRef({});
-  const f = useRef({ s: 0, v: 0, x: 0, y: 0, turn: 0, room: 0, outside: null });
-  const look = useMemo(() => new THREE.Vector3(), []);
-  const eye = useMemo(() => new THREE.CatmullRomCurve3(SHOTS.map((k) => new THREE.Vector3(...k.eye)), false, "centripetal"), []);
-  const aim = useMemo(() => new THREE.CatmullRomCurve3(SHOTS.map((k) => new THREE.Vector3(...k.aim)), false, "centripetal"), []);
+  const f = useRef({ s: 0, v: 0, x: 0, y: 0, turn: 0 });
+  const [look, pos, normal, temp, temp2, dir, aimAt, destEye, zero] = useMemo(() => Array.from({ length: 9 }, () => new THREE.Vector3()), []);
+  const [src, dst, through, inverse] = useMemo(() => Array.from({ length: 4 }, () => new THREE.Matrix4()), []);
+  const portal = useMemo(() => new THREE.PerspectiveCamera(), []);
+  const ray = useMemo(() => new THREE.Raycaster(), []), pointer = useMemo(() => new THREE.Vector2(), []);
+  const view = useMemo(() => new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: mobile ? 0 : 4 }), [mobile]);
 
   useEffect(() => {
     let gone = false;
@@ -276,6 +331,32 @@ function Film({ live, mobile, maxDpr }) {
       s.boxed = boxed;
       s.bench = place(boxed(), DESK.x + 0.42, DESK.top, 0.06, -0.28);
       world.add(s.bench);
+      // The tablet: glass, a thin aluminium body, and a stand.
+      const metal = new THREE.MeshStandardMaterial({ color: "#3b3d41", metalness: 0.9, roughness: 0.42 });
+      const tablet = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(SCREEN.width + 0.026, SCREEN.height + 0.026, 0.009), metal);
+      body.position.z = -0.0055;
+      const bezel = new THREE.Mesh(new THREE.BoxGeometry(SCREEN.width + 0.02, SCREEN.height + 0.02, 0.002), new THREE.MeshPhysicalMaterial({ color: "#0b0c0e", roughness: 0.08, clearcoat: 1 }));
+      bezel.position.z = -0.0012;
+      body.castShadow = true;
+      const ui = document.createElement("canvas");
+      ui.width = 1400;
+      ui.height = Math.round(1400 * (SCREEN.height / SCREEN.width));
+      const uiTexture = new THREE.CanvasTexture(ui);
+      uiTexture.colorSpace = THREE.SRGBColorSpace;
+      uiTexture.anisotropy = 8;
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(SCREEN.width, SCREEN.height), new THREE.ShaderMaterial({
+        vertexShader: SCREEN_VERTEX, fragmentShader: SCREEN_FRAGMENT,
+        uniforms: { tUI: { value: uiTexture }, tWindow: { value: view.texture }, uRes: { value: new THREE.Vector2(1, 1) }, uOpen: { value: 0 }, uGlow: { value: 1 }, uRect: { value: new THREE.Vector4(WINDOW.x + WINDOW.w / 2, 1 - WINDOW.y - WINDOW.h / 2, WINDOW.w / 2, WINDOW.h / 2) } },
+      }));
+      tablet.add(body, bezel, face);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1, 16), metal);
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.085, 0.01, 32), metal);
+      pole.castShadow = foot.castShadow = true;
+      world.add(tablet, pole, foot);
+      s.tablet = { group: tablet, face, ui, uiTexture, pole, foot };
+      const css = getComputedStyle(document.querySelector(".lp"));
+      s.fonts = { text: (document.querySelector(".lp").lang === "mr" ? css.getPropertyValue("--f-marathi") : css.getPropertyValue("--f-text")).trim() || "sans-serif" };
       s.ready = true;
       live.current.onReady?.();
 
@@ -411,46 +492,29 @@ function Film({ live, mobile, maxDpr }) {
     composer.setSize(size.width, size.height);
   }, [composer, size, viewport.dpr]);
 
-  useFrame(({ clock }, delta) => {
-    const l = live.current, m = f.current, s0 = set.current, dt = Math.min(delta, 1 / 24), t = clock.elapsedTime;
-    steady(delta);
-    if (!s0.ready) return;
-    const stiffness = 30;
-    m.v += ((l.s - m.s) * stiffness - m.v * 2 * Math.sqrt(stiffness)) * dt;
-    m.s += m.v * dt;
-    const s = clamp(m.s, 0, 8);
+  useEffect(() => { view.setSize(Math.round(size.width * viewport.dpr * 0.8), Math.round(size.height * viewport.dpr * 0.8)); }, [size, view, viewport.dpr]);
 
-    // Inside or out, the photograph, its light and the sun swap at the cuts.
-    const outside = s > 4.5 && s < 7.5;
-    if (outside !== m.outside && (!outside || s0.yard)) {
-      m.outside = outside;
-      s0.hall.sky.visible = !outside;
-      if (s0.yard) s0.yard.sky.visible = outside;
-      scene.environment = outside ? s0.yard.env : s0.hall.env;
-      scene.environmentIntensity = outside ? 0.95 : 1.1;
-      const light = sun.current;
-      light.intensity = outside ? 1.5 : 0.9;
-      light.color.set(outside ? "#fff4e6" : "#fff1dc");
-    }
-
-    // The drill runs all the time; the bit comes down and lifts.
-    const d = s0.drill;
+  // Sets every moving thing for a place in the journey. Called for the real camera, and again for
+  // the view through the tablet, which may be somewhere else entirely.
+  const stageAt = (s, t) => {
+    const s0 = set.current, d = s0.drill;
     if (d) {
-      if (d.bit) { d.bit.rotation.y = t * 26; d.bit.position.y = s0.height.bit - Math.pow(Math.max(0, Math.sin(t * 0.9)), 8) * 0.03; }
+      const down = Math.pow(Math.max(0, Math.sin(t * 0.9)), 8);
+      if (d.bit) { d.bit.rotation.y = t * 26; d.bit.position.y = s0.height.bit - down * 0.03; }
       if (d.a) d.a.rotation.y = t * 8;
       if (d.b) d.b.rotation.y = t * 11;
-      if (d.handle) d.handle.rotation.z = Math.pow(Math.max(0, Math.sin(t * 0.9)), 8) * 0.34;
+      if (d.handle) d.handle.rotation.z = down * 0.34;
     }
     if (s0.fan) s0.fan.rotation.y = t * 2.2;
     if (s0.lamp) s0.lamp.rotation.z = Math.sin(t * 0.8) * 0.018;
-    if (s0.bench) s0.bench.visible = s < 1.5;
-    if (s0.ours) s0.ours.visible = s < 3.5;
+    if (s0.bench) s0.bench.visible = s < 1.6;
+    if (s0.ours) s0.ours.visible = s > 1.4 && s < 3.6;
     if (s0.sticker) { s0.sticker.material.opacity = ramp(s, 2.3, 2.55); s0.sticker.scale.setScalar(1 + (1 - ramp(s, 2.3, 2.55)) * 0.5); }
     if (s0.truck) {
-      const go = ramp(s, 3.5, 4.4);
-      s0.truck.visible = s > 3.5 && s < 4.5;
-      place(s0.truck, RACK.x + lerp(0.7, 2, go), 0, lerp(0.6, 1.5, go), -0.9);
-      s0.truck.rotation.x = -0.34 * ramp(s, 3.5, 3.7);
+      const go = ramp(s, 4, 4.4);
+      s0.truck.visible = s > 3.4 && s < 4.6;
+      place(s0.truck, RACK.x + lerp(0.5, 1.2, go), 0, lerp(0.8, 1.2, go), -0.9);
+      s0.truck.rotation.x = -0.34;
     }
     if (s0.clip) {
       const on = ramp(s, 5.15, 5.5);
@@ -461,32 +525,134 @@ function Film({ live, mobile, maxDpr }) {
       s0.stamp.scale.setScalar(1 + (1 - ramp(s, 6.2, 6.34)) * 0.6);
     }
     if (s0.drawer) s0.drawer.position.z = s0.drawerZ + ramp(s, 7.6, 7.95) * 0.17;
+  };
 
-    const u = s / (SHOTS.length - 1);
-    eye.getPoint(u, camera.position);
-    aim.getPoint(u, look);
+  const lightFor = (outside) => {
+    const s0 = set.current, light = sun.current;
+    s0.hall.sky.visible = !outside;
+    if (s0.yard) s0.yard.sky.visible = outside;
+    scene.environment = outside && s0.yard ? s0.yard.env : s0.hall.env;
+    scene.environmentIntensity = outside ? 0.95 : 1.1;
+    light.intensity = outside ? 1.5 : 0.9;
+  };
+
+  useFrame(({ clock }, delta) => {
+    const l = live.current, m = f.current, s0 = set.current, dt = Math.min(delta, 1 / 24), t = clock.elapsedTime;
+    steady(delta);
+    if (!s0.ready) return;
+    const stiffness = 30;
+    m.v += ((l.s - m.s) * stiffness - m.v * 2 * Math.sqrt(stiffness)) * dt;
+    m.s += m.v * dt;
+    const s = clamp(m.s, 0, 8);
     const k = 1 - Math.exp(-dt * 3);
     m.x += (l.x - m.x) * k;
     m.y += (l.y - m.y) * k;
     m.turn += (l.turn - m.turn) * (1 - Math.exp(-dt * 7));
-    const aspect = size.width / size.height;
+
+    // Which screen are we heading for, and how far in are we?
+    const seg = Math.min(7, Math.floor(s)), u = s - seg;
+    const going = PORTALS.find((p) => p.from === seg);
+    const waiting = going && u < 0.5 ? going : PORTALS.find((p) => p.from > seg) ?? PORTALS[0];
+    const here = s >= 7.5 ? PORTALS[0] : waiting;
+    const from = SHOTS[here.from === 0 && s >= 7.5 ? 8 : here.from];
+    pos.set(...here.at);
+    normal.set(from.eye[0] - pos.x, (from.eye[1] - pos.y) * 0.72, from.eye[2] - pos.z).normalize();
+
+    // The camera. Between two stops in one place it just moves; into a tablet, it flies in, passes
+    // through the glass, and carries on from the matching point in the next place.
+    const a = SHOTS[seg], b = SHOTS[seg + 1], aspect = size.width / size.height;
     const away = aspect < 1.2 ? 1 + (1.2 - aspect) * 1.1 : 1;
-    camera.position.sub(look).multiplyScalar(away).applyAxisAngle(THREE.Object3D.DEFAULT_UP, m.turn * 1.6 + m.x * 0.035).add(look);
-    camera.position.y += m.y * 0.05 + Math.sin(t * 0.5) * 0.004;
+    const shotEye = (shot, out) => out.set(...shot.eye).sub(temp.set(...shot.aim)).multiplyScalar(away).add(temp);
+    if (going && u < 0.5) {
+      const v = smooth(u / 0.5), pull = v * v;
+      shotEye(a, camera.position).lerp(pos, pull);
+      look.set(...a.aim).lerp(aimAt.copy(pos).sub(normal), Math.min(1, v * 1.5));
+      if (pull > 0.985) camera.position.copy(pos).addScaledVector(normal, 0.004);
+    } else if (going) {
+      const v = smooth((u - 0.5) / 0.5);
+      shotEye(b, camera.position);
+      look.set(...b.aim);
+      dir.copy(look).sub(camera.position).normalize();
+      camera.position.addScaledVector(dir, -(1 - v) * (1 - v) * 0.9);
+    } else {
+      const v = smooth(u);
+      shotEye(a, camera.position).lerp(shotEye(b, temp2), v);
+      look.set(...a.aim).lerp(temp.set(...b.aim), v);
+    }
+    temp.copy(camera.position).sub(look).applyAxisAngle(THREE.Object3D.DEFAULT_UP, (m.turn * 1.6 + m.x * 0.05) * (going && u < 0.5 ? 1 - smooth(u / 0.5) : 1));
+    camera.position.copy(look).add(temp);
+    camera.position.y += m.y * 0.04 * (going && u < 0.5 ? 1 - smooth(u / 0.5) : 1) + Math.sin(t * 0.5) * 0.003;
     camera.lookAt(look);
-    const room = s < 0.5 || aspect < 1.2 ? 0 : 0.085;
-    if (Math.abs(room - m.room) > 0.0004) {
-      m.room += (room - m.room) * (1 - Math.exp(-dt * 5));
-      camera.setViewOffset(size.width, size.height, size.width * m.room, 0, size.width, size.height);
+    camera.updateMatrixWorld();
+
+    // The tablet, where it's needed.
+    const tab = s0.tablet;
+    tab.group.position.copy(pos);
+    tab.group.lookAt(temp.copy(pos).add(normal));
+    tab.pole.visible = tab.foot.visible = true;
+    const base = here.stand, tallness = pos.y - 0.1 - base;
+    tab.pole.scale.y = tallness;
+    tab.pole.position.set(pos.x, base + tallness / 2, pos.z - 0.03);
+    tab.foot.position.set(pos.x, base + 0.008, pos.z - 0.03);
+
+    // Hovering a row on the screen changes the place you see through it.
+    let over = -1;
+    if (s < 0.3 && l.onScreen) {
+      ray.setFromCamera(pointer.set(l.x, l.y), camera);
+      const hit = ray.intersectObject(tab.face)[0];
+      if (hit?.uv && hit.uv.x < 0.36) over = clamp(Math.floor(((1 - hit.uv.y - 0.1) / 0.875) * 8), 0, 7);
+    }
+    if (over >= 0) { m.pick = over; l.setPointer?.(true); } else l.setPointer?.(false);
+    l.hovered = over;
+    const now = s < 0.5 ? m.pick ?? 0 : Math.min(7, Math.round(s) - 1);
+    if (now !== m.drawn) {
+      m.drawn = now;
+      m.fade = 0;
+      drawApp(tab.ui, l.journey, s < 0.5 ? -1 : now, now, s0.fonts);
+      tab.uiTexture.needsUpdate = true;
+    }
+    m.fade = Math.min(1, (m.fade ?? 1) + dt * 3.2);
+
+    const open = going && u < 0.5 ? ramp(u, 0.2, 0.46) : 0;
+    const screen = tab.face.material.uniforms;
+    screen.uOpen.value = open;
+    screen.uGlow.value = smooth(m.fade);
+    gl.getDrawingBufferSize(screen.uRes.value);
+
+    // The view through the glass: the same camera, moved to the far side of the portal.
+    {
+      const stop = s < 0.5 ? (m.pick ?? 0) + 1 : here.from + 1;
+      const shot = SHOTS[stop];
+      shotEye(shot, destEye);
+      dir.copy(temp.set(...shot.aim)).sub(destEye).normalize();
+      destEye.addScaledVector(dir, -0.9);
+      src.lookAt(normal, zero, THREE.Object3D.DEFAULT_UP).setPosition(pos);
+      dst.lookAt(zero, dir, THREE.Object3D.DEFAULT_UP).setPosition(destEye);
+      through.copy(dst).multiply(inverse.copy(src).invert());
+      portal.projectionMatrix.copy(camera.projectionMatrix);
+      portal.projectionMatrixInverse.copy(camera.projectionMatrixInverse);
+      portal.matrixAutoUpdate = false;
+      portal.matrixWorld.copy(through).multiply(camera.matrixWorld);
+      portal.matrixWorldInverse.copy(portal.matrixWorld).invert();
+      portal.matrixWorldAutoUpdate = false;
+      tab.group.visible = tab.pole.visible = tab.foot.visible = false;
+      stageAt(stop, t);
+      lightFor(OUTSIDE(stop));
+      gl.shadowMap.autoUpdate = false;
+      const previous = gl.getRenderTarget();
+      gl.setRenderTarget(view);
+      gl.clear();
+      gl.render(scene, portal);
+      gl.setRenderTarget(previous);
+      gl.shadowMap.autoUpdate = true;
+      tab.group.visible = tab.pole.visible = tab.foot.visible = true;
     }
 
+    stageAt(s, t);
+    lightFor(OUTSIDE(s));
     const light = sun.current;
     light.position.set(look.x - 2.4, 6.4, look.z + 3.4);
     light.target.position.copy(look);
-
-    let dip = 0;
-    CUTS.forEach((c) => { dip = Math.max(dip, 1 - clamp(Math.abs(s - c) / 0.17)); });
-    l.pin.current?.style.setProperty("--dip", dip.toFixed(3));
 
     if (composer) composer.render(dt); else gl.render(scene, camera);
   }, 1);
@@ -497,7 +663,7 @@ function Film({ live, mobile, maxDpr }) {
 export default function Scene({ live, mobile, active }) {
   const maxDpr = mobile ? 1.4 : 1.6;
   return (
-    <Canvas frameloop={active ? "always" : "never"} dpr={maxDpr} shadows="percentage" gl={{ antialias: !mobile ? false : true, powerPreference: "high-performance" }} camera={{ fov: mobile ? 36 : 30, near: 0.05, far: 300, position: [-0.3, 1.5, 3.5] }}>
+    <Canvas frameloop={active ? "always" : "never"} dpr={maxDpr} shadows="percentage" gl={{ antialias: !mobile ? false : true, powerPreference: "high-performance" }} camera={{ fov: mobile ? 40 : 32, near: 0.01, far: 300, position: [-4.78, 1.2, 1.3] }}>
       <color attach="background" args={["#d9d2c3"]} />
       <Film live={live} mobile={mobile} maxDpr={maxDpr} />
     </Canvas>

@@ -108,7 +108,6 @@
 .stage:active { cursor: grabbing; }
 .stage canvas { display: block; }
 .exp[data-painted] .stage { opacity: 1; }
-.dip { position: absolute; inset: 0; z-index: 1; background: #f8f3e8; opacity: var(--dip, 0); pointer-events: none; }
 
 .journey-pin::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: var(--hero, 1); background: linear-gradient(90deg, rgb(248 243 232 / 0.94), rgb(248 243 232 / 0.76) 36%, transparent 62%); }
 .hero { position: absolute; z-index: 2; left: var(--pad); bottom: clamp(36px, 9vh, 90px); display: grid; gap: clamp(12px, 2vh, 20px); width: min(46vw, 700px); opacity: var(--hero, 1); transform: translateY(calc((1 - var(--hero, 1)) * -24px)); }
@@ -118,38 +117,34 @@
 .headline-mask > span { display: block; }
 .hero-foot { display: grid; gap: 16px; }
 .hero-foot p { margin: 0; max-width: 31em; opacity: 0.84; }
+.hero-foot .hero-hint { font-family: var(--mono-f); font-size: 11.5px; letter-spacing: 0.02em; color: var(--amber-ink); opacity: 1; }
+.lp:lang(mr) .hero-foot .hero-hint { font-family: var(--f-marathi); font-size: 15px; letter-spacing: 0; }
+.exp[data-still] .hero-hint { display: none; }
 
 .step { position: absolute; z-index: 2; left: clamp(16px, 3.4vw, 60px); bottom: clamp(24px, 6vh, 60px); width: min(29vw, 430px); padding: 16px 20px 18px; background: var(--sheet); border-radius: 10px; box-shadow: 0 30px 50px -30px rgb(60 50 30 / 0.34); opacity: 0; visibility: hidden; transform: translateY(18px); transition: opacity 0.35s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s; }
 .step[data-state="now"] { opacity: 1; visibility: visible; transform: none; }
 .step b { font-family: var(--mono-f); font-size: 12px; font-weight: 400; color: var(--amber-ink); }
 .step h2 { margin-top: 4px; font-size: clamp(32px, 3.2vw, 50px); line-height: 1.05; }
 .step p { margin: 6px 0 0; font-size: 16.5px; line-height: 1.42; color: var(--ink); opacity: 0.86; }
+.step em { display: block; margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--line); font-family: var(--mono-f); font-size: 12px; font-style: normal; color: var(--amber-ink); }
+.lp:lang(mr) .step em { font-family: var(--f-marathi); font-size: 15px; }
 .lp:lang(mr) .step h2 { line-height: 1.26; }
 
-/* The software: the same record from the first step to the last */
-.app { position: absolute; z-index: 3; right: clamp(16px, 3.4vw, 60px); top: 50%; width: min(29vw, 410px); padding: 16px 18px 12px; background: var(--sheet); border: 1px solid rgb(31 29 23 / 0.1); border-radius: 10px; box-shadow: 0 2px 4px rgb(60 50 30 / 0.06), 0 34px 60px -28px rgb(60 50 30 / 0.38); transform: translateY(-46%); opacity: calc(1 - var(--hero, 1)); }
-.app header { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--soft); }
-.app header span { display: inline-flex; align-items: center; gap: 7px; }
-.app > strong { display: block; margin-top: 9px; font-family: var(--serif); font-weight: 400; font-size: 25px; line-height: 1.12; }
-.app > em { display: block; margin-top: 2px; font-style: normal; font-size: 14px; color: var(--soft); }
-.app ol { margin: 11px 0 0; padding: 0; list-style: none; }
-.app button { position: relative; display: grid; grid-template-columns: 17px minmax(0, 1fr); gap: 0 9px; width: 100%; padding: 7px 4px 7px 2px; border: 0; border-top: 1px solid var(--line); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: opacity 0.3s, background-color 0.3s; }
-.app button i { grid-row: span 2; width: 13px; height: 13px; margin-top: 3px; border-radius: 50%; border: 1.5px solid rgb(31 29 23 / 0.28); transition: background-color 0.3s, border-color 0.3s; }
-.app button span { font-size: 14px; font-weight: 600; line-height: 1.25; }
-.app button small { font-family: var(--mono-f); font-size: 11.5px; color: var(--soft); max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.4s, opacity 0.4s; }
-.lp:lang(mr) .app button small { font-family: var(--f-marathi); font-size: 13.5px; }
-.app button[data-state="next"] { opacity: 0.46; }
-.app button[data-state="past"] i { background: #2c7a43; border-color: #2c7a43; }
-.app button[data-state="now"] i { background: var(--amber); border-color: var(--amber); box-shadow: 0 0 0 4px rgb(232 148 12 / 0.2); }
-.app button[data-state="past"] small, .app button[data-state="now"] small { max-height: 2.6em; opacity: 1; }
-.app button[data-state="now"] { background: rgb(232 148 12 / 0.09); }
-.app footer { padding-top: 7px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--soft); text-align: right; }
-@media (hover: hover) { .app button:hover { background: rgb(232 148 12 / 0.14); opacity: 1; } }
+/* Every step at a glance, along the bottom */
+.rail { position: absolute; z-index: 3; right: clamp(16px, 3.4vw, 56px); bottom: clamp(24px, 6vh, 60px); opacity: calc(1 - var(--hero, 1)); }
+.rail ol { display: flex; gap: 2px; margin: 0; padding: 5px; list-style: none; background: rgb(255 253 248 / 0.92); border-radius: 999px; box-shadow: 0 20px 40px -24px rgb(30 24 12 / 0.5); }
+.rail button { display: flex; align-items: center; gap: 6px; padding: 7px 11px; border: 0; border-radius: 999px; background: none; color: var(--soft); font: inherit; font-size: 12.5px; cursor: pointer; transition: background-color 0.3s, color 0.3s; }
+.rail i { width: 7px; height: 7px; border-radius: 50%; background: rgb(31 29 23 / 0.2); transition: background-color 0.3s; }
+.rail button[data-state="past"] i { background: #2c7a43; }
+.rail button[data-state="now"] { background: var(--ink); color: var(--page); }
+.rail button[data-state="now"] i { background: var(--amber); }
+.rail button span { display: none; }
+.rail button[data-state="now"] span { display: inline; }
+@media (hover: hover) { .rail button:hover span { display: inline; } .rail button:hover { color: var(--ink); background: rgb(232 148 12 / 0.16); } .rail button[data-state="now"]:hover { color: var(--page); background: var(--ink); } }
 
 /* No 3D: the picture, the headline and the finished record, then everything reads on below */
 .exp[data-still] .journey-run { height: auto; }
 .exp[data-still] .journey-pin { position: relative; background: var(--page) url("/line.webp") 50% 50% / cover no-repeat; }
-.exp[data-still] .app button small { max-height: 2.6em; opacity: 1; }
 
 
 @media (max-width: 900px) {
@@ -160,12 +155,9 @@
   .step { left: 12px; right: 12px; top: 68px; bottom: auto; width: auto; padding: 10px 14px 12px; }
   .step h2 { font-size: 32px; }
   .step p { margin-top: 3px; font-size: 15.5px; }
-  .app { left: 12px; right: 12px; top: auto; bottom: 12px; width: auto; padding: 10px 12px 6px; transform: none; }
-  .journey-pin::after { background: linear-gradient(180deg, rgb(248 243 232 / 0.96), rgb(248 243 232 / 0.86) 40%, transparent 58%); }
-  .app > strong, .app > em, .app footer { display: none; }
-  .app ol { margin-top: 5px; }
-  .app li:has(button[data-state="next"]), .app li:has(button[data-state="past"]) { display: none; }
-  .app li:has(button[data-state="past"]):has(+ li button[data-state="now"]) { display: block; }
+  .journey-pin::after { background: linear-gradient(180deg, rgb(248 243 232 / 0.96), rgb(248 243 232 / 0.8) 36%, transparent 50%); }
+  .rail { left: 50%; right: auto; bottom: 12px; transform: translateX(-50%); }
+  .rail button { padding: 7px 8px; }
 }
 
 /* Below the film: only what it didn't already show */
@@ -244,5 +236,4 @@
 /* No 3D: the picture and headline, then each step in turn */
 .exp[data-still] .journey-pin { height: auto; min-height: 0; overflow: visible; padding: 110px var(--pad) 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; }
 .exp[data-still] .hero { position: static; grid-column: 1 / -1; width: auto; margin-bottom: 36vh; }
-.exp[data-still] .journey-pin::after, .exp[data-still] .app, .exp[data-still] .dip { display: none; }
-.exp[data-still] .step { display: block; position: static; width: auto; opacity: 1; visibility: visible; transform: none; }
+.exp[data-still] .journey-pin::after, .exp[data-still] .app, .exp[data-still] .exp[data-still] .step { display: block; position: static; width: auto; opacity: 1; visibility: visible; transform: none; }

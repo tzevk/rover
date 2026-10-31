@@ -13,6 +13,7 @@ export const CONTENT = {
     cta: { primary: "See how it works", secondary: "Book a Demo" },
     journey: {
       kicker: "One product, start to finish",
+      hint: "That's a live window. Hover a row, then scroll to go through it.",
       head: "Order #1042",
       product: "MS bracket, The Motor Shop",
       steps: [
@@ -91,6 +92,7 @@ export const CONTENT = {
     cta: { primary: "हे कसे चालते ते पाहा", secondary: "डेमो ठरवा" },
     journey: {
       kicker: "एक उत्पादन, सुरुवातीपासून शेवटपर्यंत",
+      hint: "ही थेट खिडकी आहे. ओळीवर कर्सर न्या, मग आत जाण्यासाठी खाली सरका.",
       head: "मागणी #1042",
       product: "एमएस ब्रॅकेट, मोटर शॉप",
       steps: [
