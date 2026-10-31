@@ -1,6 +1,6 @@
 import { TZ } from "./format";
 
-// Translation key for "Good morning" / "Good afternoon" / "Good evening" in the quarry's time zone.
+// Translation key for "Good morning" / "Good afternoon" / "Good evening" in the business's time zone.
 export function greetingKey(date = new Date()) {
   const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: TZ }).format(date));
   if (hour < 12) return "greeting.morning";

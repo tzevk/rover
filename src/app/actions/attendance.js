@@ -20,21 +20,25 @@ export const saveAttendance = guarded("saveAttendance", async (_prev, formData) 
   const rows = [];
   for (const [key, value] of formData.entries()) {
     const m = key.match(/^s_(\d+)$/);
-    if (m && ATTENDANCE[value]) rows.push([Number(m[1]), date, value, user.id]);
+    if (m && ATTENDANCE[value]) rows.push([user.company_id, Number(m[1]), date, value, user.id]);
   }
   if (rows.length === 0) return { error: t("action.markOne") };
 
   // Saving twice is harmless: one row per person per day, updated in place.
-  await transaction(async (tx) => {
+  const saved = await transaction(async (tx) => {
+    const ours = await tx.query("SELECT id FROM staff WHERE company_id = ? AND id IN (?)", [user.company_id, rows.map((r) => r[1])]);
+    if (ours.length !== new Set(rows.map((r) => r[1])).size) return false;
     await tx.query(
-      `INSERT INTO attendance (staff_id, att_date, status, marked_by) VALUES ?
+      `INSERT INTO attendance (company_id, staff_id, att_date, status, marked_by) VALUES ?
        ON DUPLICATE KEY UPDATE status = VALUES(status), marked_by = VALUES(marked_by)`,
       [rows],
     );
     await audit(tx, user, "attendance.save", "attendance", null, {
-      date, marks: Object.fromEntries(rows.map(([id, , status]) => [id, status])),
+      date, marks: Object.fromEntries(rows.map(([, id, , status]) => [id, status])),
     });
+    return true;
   });
+  if (!saved) return { error: t("action.markOne") };
   invalidate(TAGS.attendance);
   revalidatePath("/attendance");
   return { ok: true, message: t("action.attendanceSaved", { count: rows.length, date: fmtDate(date) }) };

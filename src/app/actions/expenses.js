@@ -23,8 +23,8 @@ export const addExpense = guarded("addExpense", async (_prev, formData) => {
 
   await transaction(async (tx) => {
     const res = await tx.query(
-      "INSERT INTO expenses (expense_date, category, amount, description, created_by, request_id) VALUES (?, ?, ?, ?, ?, ?)",
-      [date, category, amount, description || null, user.id, requestId(formData)],
+      "INSERT INTO expenses (company_id, expense_date, category, amount, description, created_by, request_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [user.company_id, date, category, amount, description || null, user.id, requestId(formData)],
     );
     await audit(tx, user, "expense.add", "expense", res.insertId, { date, category, amount, description });
   });
@@ -37,11 +37,18 @@ export const deleteExpense = guarded("deleteExpense", async (id) => {
   const user = await requireAdmin();
   await transaction(async (tx) => {
     const res = await tx.query(
-      "UPDATE expenses SET deleted_at = NOW(), deleted_by = ? WHERE id = ? AND deleted_at IS NULL",
-      [user.id, id],
+      "UPDATE expenses SET deleted_at = NOW(), deleted_by = ? WHERE id = ? AND company_id = ? AND deleted_at IS NULL",
+      [user.id, id, user.company_id],
     );
-    if (res.affectedRows) await audit(tx, user, "expense.delete", "expense", id);
+    if (res.affectedRows) {
+      // The fuel or repair record this came from goes with it, so the two never disagree.
+      for (const table of ["fuel_logs", "maintenance_logs"]) {
+        await tx.query(`UPDATE ${table} SET deleted_at = NOW(), deleted_by = ? WHERE expense_id = ? AND company_id = ? AND deleted_at IS NULL`, [user.id, id, user.company_id]);
+      }
+      await audit(tx, user, "expense.delete", "expense", id);
+    }
   });
-  invalidate(TAGS.expenses);
+  invalidate(TAGS.expenses, TAGS.vehicles);
   revalidatePath("/expenses");
-});
+  revalidatePath("/vehicles");
+}, { inPage: true });

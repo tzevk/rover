@@ -6,19 +6,19 @@ import SubmitButton from "@/components/SubmitButton";
 import { createCustomer } from "@/app/actions/customers";
 import { requireAdmin } from "@/lib/auth";
 import { cached, TAGS } from "@/lib/cache";
-import { CUSTOMER_BALANCES, query } from "@/lib/db";
+import { customerBalances, query } from "@/lib/db";
 import { inr } from "@/lib/format";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
 
 export const generateMetadata = pageTitle("nav.customers");
 
 export default async function CustomersPage({ searchParams }) {
-  await requireAdmin();
+  const { company_id: cid } = await requireAdmin();
   const { t } = await getI18n();
   const { q = "", show = "all" } = await searchParams;
   const like = `%${q.trim()}%`;
-  const customers = await cached(`balances:${show}:${q.trim()}`, { tags: [TAGS.customers, TAGS.orders, TAGS.payments], ttl: 60 }, () => query(
-    `SELECT * FROM (${CUSTOMER_BALANCES}) b
+  const customers = await cached(`balances:${cid}:${show}:${q.trim()}`, { tags: [TAGS.customers, TAGS.orders, TAGS.payments], ttl: 60 }, () => query(
+    `SELECT * FROM (${customerBalances(cid)}) b
      WHERE (name LIKE ? OR phone LIKE ?) ${show === "due" ? "AND outstanding > 0" : ""}
      ORDER BY outstanding DESC, name`,
     [like, like],

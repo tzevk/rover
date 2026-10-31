@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Ban, ClipboardList, PackageCheck, RotateCcw, Truck } from "lucide-react";
+import { ArrowLeft, Ban, ClipboardList, PackageCheck, RotateCcw, Truck, Printer } from "lucide-react";
 import ConfirmButton from "@/components/ConfirmButton";
 import { PageHead, Section } from "@/components/ui";
 import { cancelOrder, reopenOrder } from "@/app/actions/orders";
@@ -16,11 +16,11 @@ export default async function DeliverPage({ params }) {
   const user = await requireUser();
   const { t, fmtDateTime } = await getI18n();
   const { id } = await params;
-  const [order] = await query(
-    `SELECT o.*, c.name, c.phone, c.address
-     FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.id = ?`,
+  const [[order], vehicles] = await Promise.all([query(
+    `SELECT o.*, c.name, c.phone, c.address, m.name AS material, m.unit, m.kg_per_unit
+     FROM orders o JOIN customers c ON c.id = o.customer_id LEFT JOIN materials m ON m.id = o.material_id WHERE o.id = ? AND o.company_id = ${user.company_id}`,
     [Number(id)],
-  );
+  ), query(`SELECT number, tare_kg FROM vehicles WHERE company_id = ${user.company_id} AND active = 1 ORDER BY number`)]);
   // Completed orders are hidden from workers entirely.
   if (!order || (order.status !== "pending" && user.role !== "admin")) notFound();
 
@@ -38,18 +38,22 @@ export default async function DeliverPage({ params }) {
         <Section icon={order.status === "pending" ? Truck : PackageCheck} title={t(order.status === "pending" ? "deliver.dispatchPayment" : "deliver.deliveryDetails")}>
           <div className="card-pad">
           {order.status === "pending" ? (
-            <DeliveryForm order={order} />
+            <DeliveryForm order={order} vehicles={vehicles} />
           ) : (
             <dl className="kv">
               <dt>{t("common.vehicle")}</dt><dd>{order.vehicle_number || "—"}</dd>
               <dt>{t("deliver.arrived")}</dt><dd>{fmtDateTime(order.arrival_time)}</dd>
               <dt>{t("deliver.dispatched")}</dt><dd>{fmtDateTime(order.dispatch_time)}</dd>
+              {order.material && <><dt>{t("production.material")}</dt><dd>{order.material}</dd></>}
+              {order.net_kg != null && <><dt>{t("deliver.gross")}</dt><dd>{qty(order.gross_kg)} kg</dd><dt>{t("deliver.tare")}</dt><dd>{qty(order.tare_kg)} kg</dd><dt>{t("deliver.net")}</dt><dd>{qty(order.net_kg)} kg</dd></>}
+              {order.pass_no && <><dt>{t("deliver.passNo")}</dt><dd>{order.pass_no}</dd></>}
               <dt>{t("deliver.deliveredQty")}</dt><dd>{order.delivered_qty == null ? "—" : qty(order.delivered_qty)}</dd>
               <dt>{t("common.total")}</dt><dd>{inr(order.total_amount)}</dd>
               <dt>{t("common.paid")}</dt><dd>{inr(order.paid_amount)}</dd>
               <dt>{t("common.balance")}</dt><dd className={order.balance_amount > 0 ? "due" : ""}>{inr(order.balance_amount)}</dd>
             </dl>
           )}
+          {order.status === "delivered" && <Link href={`/deliveries/${order.id}/challan`} className="btn btn-sm" style={{ marginTop: 14 }}><Printer size={14} /> {t("challan.print")}</Link>}
           </div>
         </Section>
 

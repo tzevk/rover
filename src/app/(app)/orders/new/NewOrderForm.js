@@ -6,24 +6,40 @@ import { AlertCircle, ArrowRight, CheckCircle2, Plus, Search, UserPlus, X } from
 import { createOrder } from "@/app/actions/orders";
 import { quickAddCustomer } from "@/app/actions/customers";
 import { useI18n } from "@/components/I18n";
-import { inr } from "@/lib/format";
+import { inr, qty as qtyFmt } from "@/lib/format";
 import { newRequestId } from "@/lib/request-id";
+import { safeAction } from "@/lib/safe-action";
 
-export default function NewOrderForm({ customers: initialCustomers }) {
+export default function NewOrderForm({ customers: initialCustomers, materials = [] }) {
   const { t } = useI18n();
-  const [state, formAction, pending] = useActionState(createOrder, null);
+  const [state, formAction, pending] = useActionState(safeAction(createOrder, t("common.networkError")), null);
   const requestIdRef = useRef(null);
   const [customers, setCustomers] = useState(initialCustomers);
   const [customer, setCustomer] = useState(null);
   const [orderedQty, setOrderedQty] = useState("");
   const [rate, setRate] = useState("");
+  const [materialId, setMaterialId] = useState(materials.length === 1 ? String(materials[0].id) : "");
+  const material = materials.find((m) => String(m.id) === materialId);
+
+  // A material brings its usual rate, unless someone has already typed one.
+  function pickMaterial(id) {
+    setMaterialId(id);
+    const m = materials.find((x) => String(x.id) === id);
+    if (m?.rate > 0) setRate(String(m.rate));
+  }
+
+  useEffect(() => {
+    if (materials.length === 1 && materials[0].rate > 0) setRate(String(materials[0].rate));
+    // Only when the form first appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (state?.ok) {
       requestIdRef.current = null;
       setCustomer(null);
       setOrderedQty("");
-      setRate("");
+      setRate(material?.rate > 0 ? String(material.rate) : "");
     }
   }, [state]);
 
@@ -55,6 +71,21 @@ export default function NewOrderForm({ customers: initialCustomers }) {
           }}
         />
       </div>
+
+      {materials.length > 0 && (
+        <label className="field">
+          <span>{t("production.material")}</span>
+          <select className="select" name="material_id" required value={materialId} onChange={(e) => pickMaterial(e.target.value)}>
+            <option value="" disabled>{t("expenses.choose")}</option>
+            {materials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+          {material && (
+            <small className={Number(orderedQty) > material.available ? "due" : undefined}>
+              {t("newOrder.available", { qty: qtyFmt(material.available), unit: material.unit })}
+            </small>
+          )}
+        </label>
+      )}
 
       <div className="fields fields-pair">
         <label className="field">
@@ -184,7 +215,7 @@ function NewCustomer({ initialName, onCancel, onCreated }) {
   function save() {
     if (pending) return;
     startSaving(async () => {
-      const res = await quickAddCustomer({ ...form, request_id: requestId });
+      const res = await safeAction(quickAddCustomer, t("common.networkError"))({ ...form, request_id: requestId });
       if (res.error) setError(res.error);
       else onCreated(res.customer);
     });

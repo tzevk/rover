@@ -4,13 +4,20 @@ import { getI18n } from "./i18n/server";
 
 // Wraps every server action so an unexpected failure (database down, network blip, a rule the
 // database rejects) becomes a clear message instead of a crash. Writes run in transactions,
-// so "nothing was saved" is always true when this fires.
-export function guarded(name, fn) {
+// so "nothing was saved" is always true when this fires. Details and a reference go to the
+// server log only; people see plain language.
+// inPage: for actions run by a bare <form action> button, which has nowhere to show a returned
+// message. Failing loudly sends them to the error page instead of silently doing nothing.
+export function guarded(name, fn, { inPage = false } = {}) {
   return async (...args) => {
     try {
       return await fn(...args);
     } catch (err) {
       unstable_rethrow(err); // let redirect()/notFound() through
+      if (inPage) {
+        console.error(`[${name}]`, err);
+        throw new Error("Action failed");
+      }
       const { t } = await getI18n();
       if (err?.code === "ER_DUP_ENTRY" && /request/i.test(err.message)) {
         return { ok: true, message: t("action.repeat") };
@@ -22,9 +29,7 @@ export function guarded(name, fn) {
       const ref = crypto.randomUUID().slice(0, 8);
       console.error(`[${name}] ref=${ref}`, err);
       const offline = ["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "PROTOCOL_CONNECTION_LOST", "ECONNRESET"].includes(err?.code);
-      return {
-        error: offline ? t("action.offline") : t("action.failed", { ref }),
-      };
+      return { error: t(offline ? "action.offline" : "action.failed") };
     }
   };
 }

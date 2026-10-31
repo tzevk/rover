@@ -10,9 +10,9 @@ import { getI18n, pageTitle } from "@/lib/i18n/server";
 export const generateMetadata = pageTitle("nav.staff");
 
 export default async function StaffPage() {
-  await requireAdmin();
+  const { company_id: cid } = await requireAdmin();
   const { t } = await getI18n();
-  const staff = await query("SELECT * FROM staff ORDER BY active DESC, name");
+  const staff = await query(`SELECT * FROM staff WHERE company_id = ${cid} ORDER BY active DESC, name`);
 
   return (
     <>

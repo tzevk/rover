@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import bcrypt from "bcryptjs";
 
 const scrypt = promisify(crypto.scrypt);
-const N = 16384, R = 8, P = 1, KEYLEN = 64;
+const N = 16384, R = 8, P = 5, KEYLEN = 64; // an OWASP-recommended scrypt setting
 
 export async function hashPassword(password) {
   const salt = crypto.randomBytes(16);

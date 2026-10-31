@@ -4,10 +4,11 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, Lock, User } from "lucide-react";
 import { login } from "@/app/actions/auth";
 import { useI18n } from "@/components/I18n";
+import { safeAction } from "@/lib/safe-action";
 
 export default function LoginForm() {
   const { t } = useI18n();
-  const [state, formAction, pending] = useActionState(login, null);
+  const [state, formAction, pending] = useActionState(safeAction(login, t("common.networkError")), null);
   const [step, setStep] = useState("user");
   const [username, setUsername] = useState("");
   const [showPw, setShowPw] = useState(false);

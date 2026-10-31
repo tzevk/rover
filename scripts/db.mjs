@@ -1,4 +1,4 @@
-// Database operations for Neeta.
+// Database operations for R.K. Enterprises.
 //
 //   npm run db:migrate                 apply new migrations, fix app-login privileges, write .env.local
 //   npm run db:backup                  full backup → backups/<db>-<time>.sql.gz (keeps the newest 30)
@@ -28,7 +28,7 @@ const KEEP_BACKUPS = 30;
 
 const fileEnv = readEnvFile();
 const cfg = {
-  host: process.env.DB_HOST || fileEnv.DB_HOST || "94.103.163.250",
+  host: process.env.DB_HOST || fileEnv.DB_HOST || "127.0.0.1",
   port: Number(process.env.DB_PORT || fileEnv.DB_PORT || 3306),
   database: process.env.DB_NAME || fileEnv.DB_NAME || "query",
 };
@@ -146,11 +146,11 @@ async function seedAdmin(conn) {
   if (n > 0) return null;
   const login = { username: "admin", password: process.env.SEED_ADMIN_PASSWORD || secret(9) };
   const [res] = await conn.query(
-    "INSERT INTO users (username, full_name, password_hash, role) VALUES (?, 'Owner', ?, 'admin')",
+    "INSERT INTO users (company_id, username, full_name, password_hash, role) VALUES (1, ?, 'Owner', ?, 'admin')",
     [login.username, await hashPassword(login.password)],
   );
   await conn.query(
-    "INSERT INTO audit_log (action, entity, entity_id, details) VALUES ('user.create', 'user', ?, ?)",
+    "INSERT INTO audit_log (company_id, action, entity, entity_id, details) VALUES (1, 'user.create', 'user', ?, ?)",
     [res.insertId, JSON.stringify({ username: login.username, role: "admin", via: "setup" })],
   );
   return login;
@@ -197,6 +197,7 @@ async function backup({ connection, database = cfg.database, quiet = false } = {
     user: process.env.DB_USER || fileEnv.DB_USER,
     password: process.env.DB_PASSWORD ?? fileEnv.DB_PASSWORD,
     dateStrings: true, connectTimeout: 15000,
+    ...((process.env.DB_SSL || fileEnv.DB_SSL) === "1" ? { ssl: { rejectUnauthorized: true } } : {}),
   });
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
@@ -214,7 +215,7 @@ async function backup({ connection, database = cfg.database, quiet = false } = {
       "SELECT table_name AS t FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE' ORDER BY table_name",
       [database],
     );
-    write(`-- Neeta backup of \`${database}\` at ${new Date().toISOString()}`);
+    write(`-- R.K. Enterprises backup of \`${database}\` at ${new Date().toISOString()}`);
     write("SET FOREIGN_KEY_CHECKS = 0;");
     write("SET NAMES utf8mb4;");
     let rowCount = 0;

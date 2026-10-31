@@ -7,29 +7,29 @@ import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import SubmitButton from "@/components/SubmitButton";
 import { deletePayment, recordPayment, updateCustomer } from "@/app/actions/customers";
 import { requireAdmin } from "@/lib/auth";
-import { CUSTOMER_BALANCES, query } from "@/lib/db";
+import { customerBalances, query } from "@/lib/db";
 import { inr, qty, todayISO } from "@/lib/format";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
 
 export const generateMetadata = pageTitle("customer.title");
 
 export default async function CustomerPage({ params }) {
-  await requireAdmin();
+  const { company_id: cid } = await requireAdmin();
   const { t, fmtDate, fmtDateTime } = await getI18n();
   const id = Number((await params).id);
   const [[customer], entries, pending] = await Promise.all([
-    query(`SELECT * FROM (${CUSTOMER_BALANCES}) b WHERE id = ?`, [id]),
+    query(`SELECT * FROM (${customerBalances(cid)}) b WHERE id = ?`, [id]),
     query(
       `SELECT 'delivery' AS kind, id AS ref, delivered_at AS at, total_amount AS debit, paid_amount AS credit,
               delivered_qty, rate, vehicle_number, NULL AS note
-       FROM orders WHERE customer_id = ? AND status = 'delivered'
+       FROM orders WHERE company_id = ${cid} AND customer_id = ? AND status = 'delivered'
        UNION ALL
        SELECT 'payment', id, TIMESTAMP(paid_on, TIME(created_at)), 0, amount, NULL, NULL, NULL, note
-       FROM customer_payments WHERE customer_id = ? AND deleted_at IS NULL
+       FROM customer_payments WHERE company_id = ${cid} AND customer_id = ? AND deleted_at IS NULL
        ORDER BY at, ref`,
       [id, id],
     ),
-    query("SELECT id, ordered_qty, total_amount, booked_at FROM orders WHERE customer_id = ? AND status = 'pending' ORDER BY booked_at", [id]),
+    query(`SELECT id, ordered_qty, total_amount, booked_at FROM orders WHERE company_id = ${cid} AND customer_id = ? AND status = 'pending' ORDER BY booked_at`, [id]),
   ]);
   if (!customer) notFound();
 
@@ -80,6 +80,7 @@ export default async function CustomerPage({ params }) {
               <label className="field"><span>{t("common.phone")}</span><input className="input" name="phone" type="tel" defaultValue={customer.phone ?? ""} /></label>
             </div>
             <label className="field"><span>{t("common.address")}</span><input className="input" name="address" defaultValue={customer.address ?? ""} /></label>
+            <label className="field"><span>{t("customer.creditLimit")}</span><input className="input num" type="number" name="credit_limit" min="0" step="0.01" inputMode="decimal" defaultValue={customer.credit_limit ?? ""} /><small>{t("customer.creditHint")}</small></label>
             <div><SubmitButton className="btn"><Save size={16} /> {t("customer.saveDetails")}</SubmitButton></div>
           </ActionForm>
           </div>

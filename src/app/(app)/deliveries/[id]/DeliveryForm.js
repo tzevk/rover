@@ -1,11 +1,13 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Truck } from "lucide-react";
 import SubmitButton from "@/components/SubmitButton";
+import WeighButton, { ScaleSpeed } from "@/components/WeighButton";
 import { deliverOrder } from "@/app/actions/orders";
 import { useI18n } from "@/components/I18n";
-import { inr } from "@/lib/format";
+import { inr, qty } from "@/lib/format";
+import { safeAction } from "@/lib/safe-action";
 
 // Current local time as a datetime-local value.
 function nowLocal() {
@@ -14,14 +16,31 @@ function nowLocal() {
   return d.toISOString().slice(0, 16);
 }
 
-export default function DeliveryForm({ order }) {
+export default function DeliveryForm({ order, vehicles = [] }) {
   const { t } = useI18n();
-  const [state, formAction] = useActionState(deliverOrder, null);
+  const [state, formAction] = useActionState(safeAction(deliverOrder, t("common.networkError")), null);
   const [deliveredQty, setDeliveredQty] = useState(String(order.ordered_qty));
   const [paid, setPaid] = useState("");
-  const [vehicle, setVehicle] = useState("");
-  const [arrival, setArrival] = useState("");
+  const [vehicle, setVehicle] = useState(order.vehicle_number ?? "");
+  const [arrival, setArrival] = useState(order.arrival_time ? order.arrival_time.slice(0, 16).replace(" ", "T") : "");
   const [dispatch, setDispatch] = useState("");
+  const [gross, setGross] = useState("");
+  const [tare, setTare] = useState(order.tare_kg ? String(order.tare_kg) : "");
+  const kgPerUnit = order.kg_per_unit || 1000;
+  const unit = order.unit ? t(`unit.${order.unit}`) : "";
+  const net = Number(gross) > 0 && Number(tare) > 0 && Number(gross) > Number(tare) ? Number(gross) - Number(tare) : null;
+
+  // Weights decide the quantity; it can still be overtyped afterwards.
+  useEffect(() => {
+    if (net !== null) setDeliveredQty(String(Math.round((net / kgPerUnit) * 100) / 100));
+  }, [net, kgPerUnit]);
+
+  // A known truck brings its stored empty weight.
+  function pickVehicle(value) {
+    setVehicle(value);
+    const known = vehicles.find((v) => v.number === value.trim().toUpperCase().replace(/\s+/g, " "));
+    if (known?.tare_kg && !tare) setTare(String(known.tare_kg));
+  }
 
   // Fill in "now" after mount so server and browser clocks/time zones don't disagree.
   useEffect(() => {
@@ -40,8 +59,9 @@ export default function DeliveryForm({ order }) {
       <label className="field">
         <span>{t("deliver.vehicleNumber")}</span>
         <input className="input" name="vehicle_number" required placeholder="MH 12 AB 1234"
-          autoCapitalize="characters" style={{ textTransform: "uppercase" }}
-          value={vehicle} onChange={(e) => setVehicle(e.target.value)} />
+          autoCapitalize="characters" style={{ textTransform: "uppercase" }} list="known-vehicles"
+          value={vehicle} onChange={(e) => pickVehicle(e.target.value)} />
+        <datalist id="known-vehicles">{vehicles.map((v) => <option key={v.number} value={v.number} />)}</datalist>
       </label>
 
       <div className="fields">
@@ -59,7 +79,29 @@ export default function DeliveryForm({ order }) {
 
       <div className="fields fields-pair">
         <label className="field">
-          <span>{t("deliver.deliveredQuantity")}</span>
+          <span>{t("deliver.tare")}</span>
+          <input className="input num" type="number" name="tare_kg" inputMode="numeric" min="1" step="1"
+            value={tare} onChange={(e) => setTare(e.target.value)} placeholder="kg" />
+          <WeighButton onWeight={(kg) => setTare(String(kg))} />
+        </label>
+        <label className="field">
+          <span>{t("deliver.gross")}</span>
+          <input className="input num" type="number" name="gross_kg" inputMode="numeric" min="1" step="1"
+            value={gross} onChange={(e) => setGross(e.target.value)} placeholder="kg" />
+          <WeighButton onWeight={(kg) => setGross(String(kg))} />
+        </label>
+      </div>
+      <ScaleSpeed />
+      {net !== null && <p className="net-line">{t("deliver.net")}: <strong>{qty(net)} kg</strong></p>}
+
+      <label className="field">
+        <span>{t("deliver.passNo")}</span>
+        <input className="input" name="pass_no" maxLength={40} />
+      </label>
+
+      <div className="fields fields-pair">
+        <label className="field">
+          <span>{unit ? `${t("deliver.deliveredQuantity")} (${unit})` : t("deliver.deliveredQuantity")}</span>
           <input className="input num" type="number" name="delivered_qty" inputMode="decimal" min="0.01" step="0.01"
             required value={deliveredQty} onChange={(e) => setDeliveredQty(e.target.value)} />
           <small>{t("deliver.orderedHint", { qty: order.ordered_qty })}</small>
@@ -79,8 +121,12 @@ export default function DeliveryForm({ order }) {
       </div>
 
       {state?.error && <div className="alert alert-error"><AlertCircle size={18} />{state.error}</div>}
+      {state?.ok && <div className="alert alert-ok"><CheckCircle2 size={18} />{state.message}</div>}
 
-      <SubmitButton className="btn btn-accent btn-lg"><CheckCircle2 size={18} /> {t("deliver.complete")}</SubmitButton>
+      <div className="row">
+        <SubmitButton className="btn btn-accent btn-lg" name="intent" value="complete"><CheckCircle2 size={18} /> {t("deliver.complete")}</SubmitButton>
+        <SubmitButton className="btn btn-lg" name="intent" value="arrive"><Truck size={18} /> {t("deliver.saveArrival")}</SubmitButton>
+      </div>
     </form>
   );
 }

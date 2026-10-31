@@ -6,7 +6,7 @@ const qtyFmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 });
 export const inr = (n) => inrFmt.format(Number(n) || 0);
 export const qty = (n) => qtyFmt.format(Number(n) || 0);
 
-// "YYYY-MM-DD" for today in the quarry's time zone.
+// "YYYY-MM-DD" for today in the business's time zone.
 export function todayISO() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
 }
@@ -41,6 +41,8 @@ export function fmtTime(s, lang = "en") {
 }
 
 export const fmtDateTime = (s, lang = "en") => (s ? `${fmtDate(s, lang)}, ${fmtTime(s, lang)}` : "—");
+
+export const UNITS = ["tonne", "brass", "cft", "cum"];
 
 export const EXPENSE_CATEGORIES = {
   fuel: "Fuel",

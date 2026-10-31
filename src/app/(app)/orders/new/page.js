@@ -2,25 +2,27 @@ import { ClipboardPen, Info, PlusCircle } from "lucide-react";
 import { PageHead, Section } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { cached, TAGS } from "@/lib/cache";
-import { query } from "@/lib/db";
+import { getStock, query } from "@/lib/db";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
 import NewOrderForm from "./NewOrderForm";
 
 export const generateMetadata = pageTitle("nav.newOrder");
 
 export default async function NewOrderPage() {
-  await requireUser();
+  const { company_id: cid } = await requireUser();
   const { t } = await getI18n();
   // Workers see names and phones only — never balances.
-  const customers = await cached("customer-list", { tags: [TAGS.customers], ttl: 300 }, () =>
-    query("SELECT id, name, phone FROM customers ORDER BY name"),
+  const customers = await cached(`customer-list:${cid}`, { tags: [TAGS.customers], ttl: 300 }, () =>
+    query(`SELECT id, name, phone FROM customers WHERE company_id = ${cid} ORDER BY name`),
   );
+  const materials = (await getStock(cid)).filter((m) => m.active)
+    .map((m) => ({ id: m.id, name: m.name, unit: t(`unit.${m.unit}`), rate: m.default_rate, available: m.on_hand - m.reserved }));
   return (
     <>
       <PageHead icon={PlusCircle} title={t("newOrder.title")} subtitle={t("newOrder.subtitle")} />
       <div className="split">
         <Section icon={ClipboardPen} title={t("newOrder.details")} subtitle={t("newOrder.allRequired")}>
-          <div className="card-pad"><NewOrderForm customers={customers} /></div>
+          <div className="card-pad"><NewOrderForm customers={customers} materials={materials} /></div>
         </Section>
         <Section icon={Info} title={t("newOrder.how")} className="aside-card">
           <ol className="steps">

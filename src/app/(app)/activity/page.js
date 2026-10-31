@@ -22,7 +22,7 @@ function actionIcon(action) {
 const LINKS = { order: (id) => `/deliveries/${id}`, customer: (id) => `/customers/${id}` };
 
 export default async function ActivityPage({ searchParams }) {
-  await requireAdmin();
+  const { company_id: cid } = await requireAdmin();
   const { t, fmtDateTime } = await getI18n();
   // Unknown actions/entities (added later without a translation) show their raw name.
   const label = (prefix, key) => { const s = t(`${prefix}.${key}`); return s === `${prefix}.${key}` ? key : s; };
@@ -34,7 +34,7 @@ export default async function ActivityPage({ searchParams }) {
 
   const rows = await query(
     `SELECT * FROM audit_log
-     WHERE DATE(at) BETWEEN ? AND ? ${who ? "AND username = ?" : ""}
+     WHERE company_id = ${cid} AND DATE(at) BETWEEN ? AND ? ${who ? "AND username = ?" : ""}
      ORDER BY id DESC LIMIT 500`,
     who ? [from, to, who] : [from, to],
   );

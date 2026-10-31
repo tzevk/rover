@@ -13,7 +13,7 @@ export const generateMetadata = pageTitle("nav.users");
 export default async function UsersPage() {
   const me = await requireAdmin();
   const { t, fmtDate } = await getI18n();
-  const users = await query("SELECT id, username, full_name, role, active, created_at FROM users ORDER BY role, full_name");
+  const users = await query(`SELECT id, username, full_name, role, active, created_at FROM users WHERE company_id = ${me.company_id} ORDER BY role, full_name`);
 
   return (
     <>

@@ -15,22 +15,24 @@ function readCustomer(input) {
     name: text(get("name"), 120),
     phone: text(get("phone"), 20),
     address: text(get("address"), 255),
+    creditLimit: get("credit_limit") ? num(get("credit_limit")) : null,
   };
 }
 
 async function insertCustomer(user, input) {
   const c = readCustomer(input);
   if (!c.name) return { error: (await getI18n()).t("action.customerName") };
+  if (c.creditLimit !== null && !(c.creditLimit >= 0)) return { error: (await getI18n()).t("customer.limitRule") };
   const rid = requestId(input);
   return transaction(async (tx) => {
     // A repeat of the same submission returns the customer created the first time.
     if (rid) {
-      const [existing] = await tx.query("SELECT id, name, phone FROM customers WHERE request_id = ?", [rid]);
+      const [existing] = await tx.query("SELECT id, name, phone FROM customers WHERE request_id = ? AND company_id = ?", [rid, user.company_id]);
       if (existing) return { customer: existing };
     }
     const res = await tx.query(
-      "INSERT INTO customers (name, phone, address, created_by, request_id) VALUES (?, ?, ?, ?, ?)",
-      [c.name, c.phone || null, c.address || null, user.id, rid],
+      "INSERT INTO customers (company_id, name, phone, address, credit_limit, created_by, request_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [user.company_id, c.name, c.phone || null, c.address || null, c.creditLimit, user.id, rid],
     );
     await audit(tx, user, "customer.create", "customer", res.insertId, c);
     return { customer: { id: res.insertId, name: c.name, phone: c.phone } };
@@ -60,10 +62,12 @@ export const updateCustomer = guarded("updateCustomer", async (_prev, formData) 
   const id = Number(formData.get("id"));
   const c = readCustomer(formData);
   if (!c.name) return { error: (await getI18n()).t("action.customerName") };
+  if (c.creditLimit !== null && !(c.creditLimit >= 0)) return { error: (await getI18n()).t("customer.limitRule") };
   await transaction(async (tx) => {
-    const [before] = await tx.query("SELECT name, phone, address FROM customers WHERE id = ? FOR UPDATE", [id]);
-    await tx.query("UPDATE customers SET name = ?, phone = ?, address = ? WHERE id = ?", [
-      c.name, c.phone || null, c.address || null, id,
+    const [before] = await tx.query("SELECT name, phone, address, credit_limit FROM customers WHERE id = ? AND company_id = ? FOR UPDATE", [id, user.company_id]);
+    if (!before) return;
+    await tx.query("UPDATE customers SET name = ?, phone = ?, address = ?, credit_limit = ? WHERE id = ? AND company_id = ?", [
+      c.name, c.phone || null, c.address || null, c.creditLimit, id, user.company_id,
     ]);
     await audit(tx, user, "customer.update", "customer", id, { before, after: c });
   });
@@ -82,13 +86,17 @@ export const recordPayment = guarded("recordPayment", async (_prev, formData) =>
   if (!(amount > 0)) return { error: t("common.amountPositive") };
   if (!isDate(paidOn) || paidOn > todayISO()) return { error: t("common.pickValidDate") };
 
-  await transaction(async (tx) => {
+  const saved = await transaction(async (tx) => {
+    const [customer] = await tx.query("SELECT id FROM customers WHERE id = ? AND company_id = ?", [customerId, user.company_id]);
+    if (!customer) return false;
     const res = await tx.query(
-      "INSERT INTO customer_payments (customer_id, amount, paid_on, note, recorded_by, request_id) VALUES (?, ?, ?, ?, ?, ?)",
-      [customerId, amount, paidOn, note || null, user.id, requestId(formData)],
+      "INSERT INTO customer_payments (company_id, customer_id, amount, paid_on, note, recorded_by, request_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [user.company_id, customerId, amount, paidOn, note || null, user.id, requestId(formData)],
     );
     await audit(tx, user, "payment.record", "customer", customerId, { paymentId: res.insertId, amount, paidOn, note });
+    return true;
   });
+  if (!saved) return { error: t("action.customerGone") };
   invalidate(TAGS.payments);
   revalidatePath(`/customers/${customerId}`);
   revalidatePath("/customers");
@@ -100,11 +108,11 @@ export const deletePayment = guarded("deletePayment", async (customerId, payment
   const user = await requireAdmin();
   await transaction(async (tx) => {
     const res = await tx.query(
-      "UPDATE customer_payments SET deleted_at = NOW(), deleted_by = ? WHERE id = ? AND customer_id = ? AND deleted_at IS NULL",
-      [user.id, paymentId, customerId],
+      "UPDATE customer_payments SET deleted_at = NOW(), deleted_by = ? WHERE id = ? AND customer_id = ? AND company_id = ? AND deleted_at IS NULL",
+      [user.id, paymentId, customerId, user.company_id],
     );
     if (res.affectedRows) await audit(tx, user, "payment.delete", "customer", customerId, { paymentId });
   });
   invalidate(TAGS.payments);
   revalidatePath(`/customers/${customerId}`);
-});
+}, { inPage: true });

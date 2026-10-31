@@ -51,12 +51,12 @@ export default async function ExpensesPage({ searchParams }) {
         </div>
       </Section>
 
-      {user.role === "admin" && <ExpenseReport searchParams={await searchParams} today={today} />}
+      {user.role === "admin" && <ExpenseReport cid={user.company_id} searchParams={await searchParams} today={today} />}
     </>
   );
 }
 
-async function ExpenseReport({ searchParams: sp, today }) {
+async function ExpenseReport({ cid, searchParams: sp, today }) {
   const { t, fmtDate } = await getI18n();
   const from = isDate(sp.from) ? sp.from : `${today.slice(0, 8)}01`;
   const to = isDate(sp.to) ? sp.to : today;
@@ -69,13 +69,13 @@ async function ExpenseReport({ searchParams: sp, today }) {
   const [rows, byCategory] = await Promise.all([
     query(
       `SELECT e.*, u.full_name FROM expenses e LEFT JOIN users u ON u.id = e.created_by
-       WHERE e.expense_date BETWEEN ? AND ? AND e.deleted_at IS NULL ${extra}
+       WHERE e.company_id = ${cid} AND e.expense_date BETWEEN ? AND ? AND e.deleted_at IS NULL ${extra}
        ORDER BY e.expense_date DESC, e.id DESC`,
       params,
     ),
     query(
       `SELECT category, SUM(amount) AS total FROM expenses e
-       WHERE expense_date BETWEEN ? AND ? AND deleted_at IS NULL ${extra} GROUP BY category`,
+       WHERE e.company_id = ${cid} AND e.expense_date BETWEEN ? AND ? AND e.deleted_at IS NULL ${extra} GROUP BY category`,
       params,
     ),
   ]);

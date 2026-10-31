@@ -4,13 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BookOpenCheck, CalendarCheck, CalendarDays, ClipboardList, Contact, HardHat, History, Home, LogOut, Menu,
+  BellRing, BookOpenCheck, Boxes, Building2, CalendarCheck, CalendarDays, ClipboardList, Contact, Container, CreditCard, Factory, Inbox, HardHat, History, Home, LogOut, Menu,
   PanelLeftClose, PanelLeftOpen, PlusCircle, Receipt, ShieldCheck, Truck, UserRound, Users, Wallet,
 } from "lucide-react";
 import Logo from "./Logo";
 import NavProgress from "./NavProgress";
 import PrefsToggle from "./PrefsToggle";
-import SkyScene from "./SkyScene";
 import { useI18n } from "./I18n";
 import { logout } from "@/app/actions/auth";
 import { setPrefCookie, SIDEBAR_COOKIE } from "@/lib/ui-prefs";
@@ -23,8 +22,15 @@ const WORK = [
   { href: "/attendance", label: "nav.attendance", short: "nav.attendanceShort", icon: CalendarCheck },
 ];
 
+const OPERATIONS = [
+  { href: "/production", label: "nav.production", icon: Factory },
+  { href: "/stock", label: "nav.stock", icon: Boxes },
+  { href: "/vehicles", label: "nav.vehicles", icon: Container },
+];
+
 // label / short are translation keys.
 const ADMIN = [
+  { href: "/alerts", label: "nav.alerts", icon: BellRing },
   { href: "/orders", label: "nav.orders", icon: ClipboardList },
   { href: "/customers", label: "nav.customers", icon: Contact },
   { href: "/accounts", label: "nav.accounts", icon: BookOpenCheck },
@@ -32,6 +38,9 @@ const ADMIN = [
   { href: "/staff", label: "nav.staff", icon: HardHat },
   { href: "/users", label: "nav.users", icon: Users },
   { href: "/activity", label: "nav.activity", icon: History },
+  { href: "/company", label: "nav.company", icon: Building2 },
+  { href: "/billing", label: "nav.billing", icon: CreditCard },
+  { href: "/enquiries", label: "nav.enquiries", icon: Inbox, vendorOnly: true },
 ];
 
 function isActive(pathname, href) {
@@ -47,7 +56,7 @@ function currentSection(pathname, items) {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 
-export default function Shell({ user, appName, pendingCount, today, initialCollapsed = false, sky, children }) {
+export default function Shell({ user, appName, pendingCount, today, initialCollapsed = false, children }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -58,7 +67,8 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
     setCollapsed(next);
     setPrefCookie(SIDEBAR_COOKIE, next ? "collapsed" : "open");
   }
-  const items = user.role === "admin" ? [...WORK, ...ADMIN] : WORK;
+  const admin = ADMIN.filter((i) => !i.vendorOnly || user.company_id === 1);
+  const items = user.role === "admin" ? [...WORK, ...OPERATIONS, ...admin] : [...WORK, ...OPERATIONS];
   const section = currentSection(pathname, items) ?? WORK[0];
   const SectionIcon = section.icon;
   const initial = user.full_name.charAt(0).toUpperCase();
@@ -105,10 +115,10 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
   return (
     <div className="shell" data-open={open} data-collapsed={collapsed}>
       <NavProgress />
-      <SkyScene initial={sky} />
+      <div className="backdrop" aria-hidden="true" />
       <header className="topbar">
         <Logo size={30} />
-        {appName}
+        <span className="topbar-name">{appName}</span>
         <PrefsToggle className="prefs-dark" />
         <span className="avatar avatar-sm" title={user.full_name}>{initial}</span>
         <button className="icon-btn" onClick={() => setOpen(true)} aria-label={t("shell.openMenu")}>
@@ -129,10 +139,12 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
         <nav className="side-nav">
           {user.role === "admin" && <div className="side-group"><span className="side-label">{t("shell.dailyWork")}</span></div>}
           {WORK.map(link)}
+          <div className="side-group"><span className="side-label">{t("shell.operations")}</span></div>
+          {OPERATIONS.map(link)}
           {user.role === "admin" && (
             <>
               <div className="side-group"><span className="side-label">{t("shell.owner")}</span></div>
-              {ADMIN.map(link)}
+              {admin.map(link)}
             </>
           )}
         </nav>
@@ -175,6 +187,7 @@ export default function Shell({ user, appName, pendingCount, today, initialColla
           {/* Keyed by route so each page plays its entrance animation; same-page refreshes don't. */}
           <div key={pathname} className="page-enter">{children}</div>
         </main>
+        <footer className="app-foot">{t("app.copyright", { year: new Date().getFullYear() })}</footer>
       </div>
 
       <nav className="tabbar" aria-label={t("shell.quickNav")}>

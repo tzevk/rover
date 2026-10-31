@@ -10,7 +10,7 @@ import { isDate } from "@/lib/validate";
 export const generateMetadata = pageTitle("nav.accounts");
 
 export default async function AccountsPage({ searchParams }) {
-  await requireAdmin();
+  const { company_id: cid } = await requireAdmin();
   const { t, fmtDate, fmtTime } = await getI18n();
   const today = todayISO();
   const { date: requested } = await searchParams;
@@ -21,22 +21,22 @@ export default async function AccountsPage({ searchParams }) {
       `SELECT o.id, o.delivered_qty, o.rate, o.total_amount, o.paid_amount, o.balance_amount, o.vehicle_number,
               o.delivered_at, c.name, c.id AS cid
        FROM orders o JOIN customers c ON c.id = o.customer_id
-       WHERE o.status = 'delivered' AND DATE(o.delivered_at) = ? ORDER BY o.delivered_at`,
+       WHERE o.company_id = ${cid} AND o.status = 'delivered' AND DATE(o.delivered_at) = ? ORDER BY o.delivered_at`,
       [date],
     ),
     query(
       `SELECT COUNT(*) AS n, COALESCE(SUM(ordered_qty), 0) AS qty, COALESCE(SUM(ordered_qty * rate), 0) AS value
-       FROM orders WHERE DATE(booked_at) = ? AND status <> 'cancelled'`,
+       FROM orders WHERE company_id = ${cid} AND DATE(booked_at) = ? AND status <> 'cancelled'`,
       [date],
     ),
     query(
       `SELECT p.id, p.amount, p.note, c.name, c.id AS cid FROM customer_payments p
-       JOIN customers c ON c.id = p.customer_id WHERE p.paid_on = ? AND p.deleted_at IS NULL ORDER BY p.id`,
+       JOIN customers c ON c.id = p.customer_id WHERE p.company_id = ${cid} AND p.paid_on = ? AND p.deleted_at IS NULL ORDER BY p.id`,
       [date],
     ),
-    query("SELECT id, category, amount, description FROM expenses WHERE expense_date = ? AND deleted_at IS NULL ORDER BY id", [date]),
+    query(`SELECT id, category, amount, description FROM expenses WHERE company_id = ${cid} AND expense_date = ? AND deleted_at IS NULL ORDER BY id`, [date]),
     query(
-      `SELECT a.status, s.daily_wage FROM attendance a JOIN staff s ON s.id = a.staff_id WHERE a.att_date = ?`,
+      `SELECT a.status, s.daily_wage FROM attendance a JOIN staff s ON s.id = a.staff_id WHERE a.company_id = ${cid} AND a.att_date = ?`,
       [date],
     ),
   ]);

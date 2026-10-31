@@ -1,4 +1,6 @@
 import mysql from "mysql2/promise";
+import { cached, TAGS } from "./cache";
+import { text } from "./validate";
 
 const REQUIRED = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "SESSION_SECRET"];
 
@@ -19,9 +21,11 @@ function createPool() {
     enableKeepAlive: true,
     dateStrings: true,
     decimalNumbers: true,
+    stringifyObjects: true, // an object sent as a value must never expand into SQL
+    ...(process.env.DB_SSL === "1" ? { ssl: { rejectUnauthorized: true } } : {}),
   });
   // Same rules on every connection regardless of server defaults: strict data checking
-  // (reject, never silently truncate) and IST so "today" matches the quarry's day.
+  // (reject, never silently truncate) and IST so "today" matches the working day.
   pool.pool.on("connection", (conn) => {
     conn.query(
       "SET time_zone = ?, sql_mode = 'STRICT_ALL_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ZERO_DATE,NO_ZERO_IN_DATE,NO_ENGINE_SUBSTITUTION'",
@@ -32,7 +36,7 @@ function createPool() {
 }
 
 // Reuse one pool across hot reloads in dev.
-export const pool = (globalThis.__neetaPool ??= createPool());
+export const pool = (globalThis.__rkPool ??= createPool());
 
 const SLOW_MS = 300;
 
@@ -71,14 +75,14 @@ export async function transaction(fn) {
 // Append-only record of who changed what. Call inside the same transaction as the change.
 export function audit(tx, user, action, entity, entityId, details) {
   return tx.query(
-    "INSERT INTO audit_log (user_id, username, action, entity, entity_id, details) VALUES (?, ?, ?, ?, ?, ?)",
-    [user?.id ?? null, user?.username ?? null, action, entity, entityId ?? null, details ? JSON.stringify(details) : null],
+    "INSERT INTO audit_log (company_id, user_id, username, action, entity, entity_id, details) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [user.company_id, user?.id ?? null, user?.username ?? null, action, entity, entityId ?? null, details ? JSON.stringify(details) : null],
   );
 }
 
 // Outstanding = unpaid balances from deliveries − later payments (deleted payments excluded).
-export const CUSTOMER_BALANCES = `
-  SELECT c.id, c.name, c.phone, c.address, c.created_at,
+export const customerBalances = (companyId) => `
+  SELECT c.id, c.name, c.phone, c.address, c.created_at, c.credit_limit,
          COALESCE(o.orders, 0)  AS orders,
          COALESCE(o.billed, 0)  AS billed,
          COALESCE(o.paid, 0) + COALESCE(p.paid, 0) AS paid,
@@ -92,4 +96,43 @@ export const CUSTOMER_BALANCES = `
   LEFT JOIN (
     SELECT customer_id, SUM(amount) AS paid FROM customer_payments
     WHERE deleted_at IS NULL GROUP BY customer_id
-  ) p ON p.customer_id = c.id`;
+  ) p ON p.customer_id = c.id
+  WHERE c.company_id = ${Number(companyId)}`;
+
+// Stock isn't stored, it's worked out: opening + produced − used − delivered ± counts. So it can
+// never drift from the records, and a reopened delivery puts its material straight back.
+export const stockLevels = (companyId) => {
+  const cid = Number(companyId);
+  return `
+  SELECT m.*, COALESCE(p.made, 0) AS produced, COALESCE(u.used_qty, 0) AS consumed, COALESCE(d.sold, 0) AS delivered,
+         COALESCE(r.held, 0) AS reserved, COALESCE(c.diff, 0) AS adjusted,
+         m.opening_stock + COALESCE(p.made, 0) - COALESCE(u.used_qty, 0) - COALESCE(d.sold, 0) + COALESCE(c.diff, 0) AS on_hand
+  FROM materials m
+  LEFT JOIN (SELECT material_id, SUM(qty) AS made FROM production_entries
+             WHERE company_id = ${cid} AND deleted_at IS NULL GROUP BY material_id) p ON p.material_id = m.id
+  LEFT JOIN (SELECT input_material_id, SUM(input_qty) AS used_qty FROM production_entries
+             WHERE company_id = ${cid} AND deleted_at IS NULL AND input_material_id IS NOT NULL GROUP BY input_material_id) u ON u.input_material_id = m.id
+  LEFT JOIN (SELECT material_id, SUM(delivered_qty) AS sold FROM orders
+             WHERE company_id = ${cid} AND status = 'delivered' AND material_id IS NOT NULL GROUP BY material_id) d ON d.material_id = m.id
+  LEFT JOIN (SELECT material_id, SUM(ordered_qty) AS held FROM orders
+             WHERE company_id = ${cid} AND status = 'pending' AND material_id IS NOT NULL GROUP BY material_id) r ON r.material_id = m.id
+  LEFT JOIN (SELECT material_id, SUM(difference) AS diff FROM stock_counts
+             WHERE company_id = ${cid} GROUP BY material_id) c ON c.material_id = m.id
+  WHERE m.company_id = ${cid}`;
+};
+
+export const getStock = (companyId) =>
+  cached(`stock:${companyId}`, { tags: [TAGS.stock, TAGS.orders], ttl: 60 }, () => query(`${stockLevels(companyId)} ORDER BY m.active DESC, m.name`));
+
+export const cleanVehicle = (v) => text(v, 20).toUpperCase().replace(/\s+/g, " ");
+
+// Vehicles are remembered as they're used, so nobody has to set them up first.
+// A new tare replaces the stored one; an empty tare leaves it alone.
+export async function saveVehicleNumber(tx, companyId, number, tareKg) {
+  const res = await tx.query(
+    `INSERT INTO vehicles (company_id, number, tare_kg) VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), tare_kg = COALESCE(VALUES(tare_kg), tare_kg)`,
+    [companyId, number, tareKg ?? null],
+  );
+  return res.insertId;
+}

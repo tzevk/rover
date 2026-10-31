@@ -14,6 +14,7 @@ export const generateMetadata = pageTitle("nav.attendance");
 
 export default async function AttendancePage({ searchParams }) {
   const user = await requireUser();
+  const cid = user.company_id;
   const { t, fmtDate } = await getI18n();
   const isAdmin = user.role === "admin";
   const today = todayISO();
@@ -24,7 +25,7 @@ export default async function AttendancePage({ searchParams }) {
   const staff = await query(
     `SELECT s.id, s.name, s.daily_wage, a.status
      FROM staff s LEFT JOIN attendance a ON a.staff_id = s.id AND a.att_date = ?
-     WHERE s.active = 1 OR a.status IS NOT NULL
+     WHERE s.company_id = ${cid} AND (s.active = 1 OR a.status IS NOT NULL)
      ORDER BY s.name`,
     [date],
   );

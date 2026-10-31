@@ -23,7 +23,7 @@ export function signSession(user) {
 export async function verifySession(token) {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, key());
+    const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"] });
     return payload;
   } catch {
     return null;

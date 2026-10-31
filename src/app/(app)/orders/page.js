@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeIndianRupee, ClipboardList, Filter, HandCoins, ListFilter, SearchX, Wallet } from "lucide-react";
+import { BadgeIndianRupee, ClipboardList, Filter, HandCoins, ListFilter, SearchX, Wallet, Download } from "lucide-react";
 import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
@@ -12,7 +12,7 @@ export const generateMetadata = pageTitle("nav.orders");
 const STATUSES = ["all", "pending", "delivered", "cancelled"];
 
 export default async function OrdersPage({ searchParams }) {
-  await requireAdmin();
+  const { company_id: cid } = await requireAdmin();
   const { t, fmtDateTime, fmtTime } = await getI18n();
   const sp = await searchParams;
   const today = todayISO();
@@ -21,7 +21,7 @@ export default async function OrdersPage({ searchParams }) {
   const status = STATUSES.includes(sp.status) ? sp.status : "all";
   const q = (sp.q ?? "").trim();
 
-  const where = ["DATE(o.booked_at) BETWEEN ? AND ?"];
+  const where = [`o.company_id = ${cid}`, "DATE(o.booked_at) BETWEEN ? AND ?"];
   const params = [from, to];
   if (status !== "all") { where.push("o.status = ?"); params.push(status); }
   if (q) {
@@ -41,7 +41,9 @@ export default async function OrdersPage({ searchParams }) {
 
   return (
     <>
-      <PageHead icon={ClipboardList} title={t("nav.orders")} subtitle={t("orders.subtitle")} />
+      <PageHead icon={ClipboardList} title={t("nav.orders")} subtitle={t("orders.subtitle")}>
+        <a className="btn" href={`/api/export/orders?from=${from}&to=${to}`} download><Download size={16} /> {t("orders.export")}</a>
+      </PageHead>
       <div className="stats">
         <Stat icon={ClipboardList} label={t("orders.inRange")} value={orders.length} />
         <Stat icon={BadgeIndianRupee} label={t("orders.deliveredValue")} value={inr(sum("total_amount"))} />

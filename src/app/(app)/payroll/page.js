@@ -9,7 +9,7 @@ import { isDate } from "@/lib/validate";
 export const generateMetadata = pageTitle("nav.payroll");
 
 export default async function PayrollPage({ searchParams }) {
-  await requireAdmin();
+  const { company_id: cid } = await requireAdmin();
   const { t, fmtDate } = await getI18n();
   const sp = await searchParams;
   const today = todayISO();
@@ -23,6 +23,7 @@ export default async function PayrollPage({ searchParams }) {
             COALESCE(SUM(a.status = 'absent'), 0)   AS absent
      FROM staff s
      LEFT JOIN attendance a ON a.staff_id = s.id AND a.att_date BETWEEN ? AND ?
+     WHERE s.company_id = ${cid}
      GROUP BY s.id
      HAVING s.active = 1 OR present + half + absent > 0
      ORDER BY s.name`,

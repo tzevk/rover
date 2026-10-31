@@ -10,9 +10,13 @@ export async function GET() {
     const [row] = await query(
       "SELECT 1 AS ok, (SELECT MAX(version) FROM schema_migrations) AS schema_version",
     );
-    return Response.json({ status: "ok", db: "up", schema: row.schema_version, ms: Date.now() - started, cache: cacheStats() });
+    // Public endpoint: internals only when explicitly switched on.
+    const details = process.env.HEALTH_DETAILS === "1"
+      ? { schema: row.schema_version, ms: Date.now() - started, cache: cacheStats() }
+      : {};
+    return Response.json({ status: "ok", db: "up", ...details });
   } catch (err) {
     console.error("health check failed", err);
-    return Response.json({ status: "error", db: "down" }, { status: 503 });
+    return Response.json({ status: "error" }, { status: 503 });
   }
 }

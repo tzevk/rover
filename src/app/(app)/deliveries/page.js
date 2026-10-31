@@ -9,18 +9,19 @@ import { getI18n, pageTitle } from "@/lib/i18n/server";
 export const generateMetadata = pageTitle("nav.deliveries");
 
 export default async function DeliveriesPage({ searchParams }) {
-  await requireUser();
+  const { company_id: cid } = await requireUser();
   const { t, fmtDateTime } = await getI18n();
   const { q = "", done } = await searchParams;
   const like = `%${q.trim()}%`;
 
   // Only pending orders are ever listed here — completed ones live in the Admin's order history.
   const orders = await query(
-    `SELECT o.id, o.ordered_qty, o.rate, o.total_amount, o.booked_at, c.name, c.phone, u.full_name AS booked_by
+    `SELECT o.id, o.ordered_qty, o.rate, o.total_amount, o.booked_at, o.arrival_time, o.vehicle_number, c.name, c.phone, m.name AS material, u.full_name AS booked_by
      FROM orders o
+     LEFT JOIN materials m ON m.id = o.material_id
      JOIN customers c ON c.id = o.customer_id
      LEFT JOIN users u ON u.id = o.booked_by
-     WHERE o.status = 'pending' AND (c.name LIKE ? OR c.phone LIKE ? OR o.id = ?)
+     WHERE o.company_id = ${cid} AND o.status = 'pending' AND (c.name LIKE ? OR c.phone LIKE ? OR o.id = ?)
      ORDER BY o.booked_at`,
     [like, like, Number(q) || 0],
   );
@@ -31,7 +32,7 @@ export default async function DeliveriesPage({ searchParams }) {
 
       {done && (
         <div className="alert alert-ok" style={{ marginBottom: 16 }}>
-          <CheckCircle2 size={18} /> {t("deliveries.done", { id: done })}
+          <CheckCircle2 size={18} /> <span>{t("deliveries.done", { id: done })} <Link href={`/deliveries/${Number(done)}/challan`} className="inline-link">{t("challan.print")}</Link></span>
         </div>
       )}
 
@@ -68,7 +69,8 @@ export default async function DeliveriesPage({ searchParams }) {
                     <td className="nowrap"><span className="badge badge-pending">#{o.id}</span></td>
                     <td>
                       <strong>{o.name}</strong>
-                      <div className="muted" style={{ fontSize: 12 }}>{o.phone || "—"}</div>
+                      <div className="muted" style={{ fontSize: 12 }}>{[o.material, o.phone].filter(Boolean).join(" · ") || "—"}</div>
+                      {o.arrival_time && <span className="badge badge-admin">{t("deliveries.atGate", { vehicle: o.vehicle_number })}</span>}
                     </td>
                     <td className="num" data-label={t("common.qty")}>{qty(o.ordered_qty)}</td>
                     <td className="num" data-label={t("common.rate")}>{inr(o.rate)}</td>

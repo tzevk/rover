@@ -1,12 +1,12 @@
 import Link from "next/link";
 import {
   ArrowRight, BadgeIndianRupee, CalendarCheck, CircleCheckBig, Clock, HandCoins, LayoutDashboard,
-  PlusCircle, Receipt, Scale, Sun, Truck, Wallet,
-} from "lucide-react";
+  PlusCircle, Receipt, Scale, Sun, Truck, Wallet, BellRing } from "lucide-react";
 import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { describeAlert, getAlerts } from "@/lib/alerts";
 import { cached, TAGS } from "@/lib/cache";
-import { CUSTOMER_BALANCES, query } from "@/lib/db";
+import { customerBalances, query } from "@/lib/db";
 import { inr, qty, todayISO } from "@/lib/format";
 import { firstName, greetingKey } from "@/lib/greeting";
 import { getI18n, pageTitle } from "@/lib/i18n/server";
@@ -24,7 +24,7 @@ async function WorkerHome({ user }) {
   // Only counts of the worker's own work today — no amounts, no completed-order details.
   const [[{ pending }], [{ booked }], [{ delivered }]] = await cached(
     `worker-home:${user.id}:${today}`, { tags: [TAGS.orders], ttl: 60 }, () => Promise.all([
-      query("SELECT COUNT(*) AS pending FROM orders WHERE status = 'pending'"),
+      query(`SELECT COUNT(*) AS pending FROM orders WHERE company_id = ${user.company_id} AND status = 'pending'`),
       query("SELECT COUNT(*) AS booked FROM orders WHERE booked_by = ? AND DATE(booked_at) = ?", [user.id, today]),
       query("SELECT COUNT(*) AS delivered FROM orders WHERE delivered_by = ? AND DATE(delivered_at) = ?", [user.id, today]),
     ]),
@@ -67,27 +67,29 @@ async function WorkerHome({ user }) {
 }
 
 async function AdminDashboard({ user }) {
-  const { t, fmtDateTime } = await getI18n();
+  const i18n = await getI18n();
+  const { t, fmtDateTime } = i18n;
   const today = todayISO();
+  const alerts = await getAlerts(user.company_id);
   const tags = [TAGS.orders, TAGS.payments, TAGS.expenses, TAGS.customers];
   const [[pending], [delivered], [payments], [expenses], [outstanding], oldestPending, topDue] = await cached(
-    `dashboard:${today}`, { tags, ttl: 60 }, () => Promise.all([
-    query("SELECT COUNT(*) AS n, COALESCE(SUM(total_amount), 0) AS value FROM orders WHERE status = 'pending'"),
+    `dashboard:${user.company_id}:${today}`, { tags, ttl: 60 }, () => Promise.all([
+    query(`SELECT COUNT(*) AS n, COALESCE(SUM(total_amount), 0) AS value FROM orders WHERE company_id = ${user.company_id} AND status = 'pending'`),
     query(
       `SELECT COUNT(*) AS n, COALESCE(SUM(delivered_qty), 0) AS qty, COALESCE(SUM(total_amount), 0) AS sales,
               COALESCE(SUM(paid_amount), 0) AS paid
-       FROM orders WHERE status = 'delivered' AND DATE(delivered_at) = ?`,
+       FROM orders WHERE company_id = ${user.company_id} AND status = 'delivered' AND DATE(delivered_at) = ?`,
       [today],
     ),
-    query("SELECT COALESCE(SUM(amount), 0) AS total FROM customer_payments WHERE paid_on = ? AND deleted_at IS NULL", [today]),
-    query("SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE expense_date = ? AND deleted_at IS NULL", [today]),
-    query(`SELECT COALESCE(SUM(outstanding), 0) AS total FROM (${CUSTOMER_BALANCES}) b WHERE outstanding > 0`),
+    query(`SELECT COALESCE(SUM(amount), 0) AS total FROM customer_payments WHERE company_id = ${user.company_id} AND paid_on = ? AND deleted_at IS NULL`, [today]),
+    query(`SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE company_id = ${user.company_id} AND expense_date = ? AND deleted_at IS NULL`, [today]),
+    query(`SELECT COALESCE(SUM(outstanding), 0) AS total FROM (${customerBalances(user.company_id)}) b WHERE outstanding > 0`),
     query(
       `SELECT o.id, o.ordered_qty, o.total_amount, o.booked_at, c.name
        FROM orders o JOIN customers c ON c.id = o.customer_id
-       WHERE o.status = 'pending' ORDER BY o.booked_at LIMIT 6`,
+       WHERE o.company_id = ${user.company_id} AND o.status = 'pending' ORDER BY o.booked_at LIMIT 6`,
     ),
-    query(`SELECT * FROM (${CUSTOMER_BALANCES}) b WHERE outstanding > 0 ORDER BY outstanding DESC LIMIT 6`),
+    query(`SELECT * FROM (${customerBalances(user.company_id)}) b WHERE outstanding > 0 ORDER BY outstanding DESC LIMIT 6`),
   ]));
   const collected = delivered.paid + payments.total;
 
@@ -105,6 +107,17 @@ async function AdminDashboard({ user }) {
         <Stat icon={Receipt} tone="danger" label={t("home.expensesToday")} value={inr(expenses.total)} hint={t("home.netCashHint", { amount: inr(collected - expenses.total) })} />
         <Stat icon={Truck} tone="brown" label={t("nav.deliveries")} value={pending.n} hint={t("home.worthHint", { amount: inr(pending.value) })} />
       </div>
+
+      {alerts.length > 0 && (
+        <Section icon={BellRing} title={t("nav.alerts")} subtitle={t("alerts.count", { count: alerts.length })}
+          action={<HeadLink href="/alerts">{t("alerts.seeAll")}</HeadLink>} className="section-gap">
+          <ul className="alert-list">
+            {alerts.slice(0, 4).map((a, i) => (
+              <li key={i} className={`tone-${a.tone}`}><Link href={a.href}><span className="alert-kind">{t(`alert.kind.${a.kind}`)}</span><span>{describeAlert(a, i18n)}</span></Link></li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       <div className="grid-2">
         <Section icon={Clock} title={t("home.waitingLongest")} subtitle={t("home.oldestFirst")}

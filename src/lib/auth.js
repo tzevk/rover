@@ -11,16 +11,30 @@ export const getUser = cache(async () => {
   const session = await verifySession(token);
   if (!session) return null;
   const [user] = await cached(`user:${session.sub}`, { tags: [TAGS.users], ttl: 30 }, () =>
-    query("SELECT id, username, full_name, role, session_version FROM users WHERE id = ? AND active = 1", [session.sub]),
+    query(
+      `SELECT u.id, u.company_id, u.username, u.full_name, u.role, u.session_version,
+              c.name AS company_name, c.plan, c.access_until,
+              (c.access_until IS NULL OR c.access_until > NOW()) AS has_access
+       FROM users u JOIN companies c ON c.id = u.company_id
+       WHERE u.id = ? AND u.active = 1`,
+      [session.sub],
+    ),
   );
   // Disabled, password reset, or role changed since this cookie was issued → not signed in.
   if (!user || user.session_version !== session.sv || user.role !== session.role) return null;
   return user;
 });
 
-export async function requireUser() {
+// Signed in, whether or not the company's access has ended. Only for the shell and /billing.
+export async function requireAccount() {
   const user = await getUser();
   if (!user) redirect("/login");
+  return user;
+}
+
+export async function requireUser() {
+  const user = await requireAccount();
+  if (!user.has_access) redirect("/billing");
   return user;
 }
 
