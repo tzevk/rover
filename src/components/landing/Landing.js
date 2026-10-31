@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import Logo from "@/components/Logo";
 import ContactLinks from "@/components/ContactLinks";
 import SiteMenu from "./SiteMenu";
@@ -9,7 +8,7 @@ import { SEO_PAGES } from "./seo-pages";
 import DemoForm from "./DemoForm";
 import Experience from "./Experience";
 import { fontClasses } from "./fonts";
-import { Action, Headline, MotionRoot, Rise } from "./Motion";
+import { MotionRoot, Rise } from "./Motion";
 import "./landing.css";
 
 export function landingMetadata(lang) {
@@ -46,8 +45,6 @@ function Panel({ data, sample }) {
   );
 }
 
-const EMPTY = [];
-
 export default function Landing({ lang }) {
   const c = CONTENT[lang];
   const json = JSON.stringify(structuredData(c)).replace(/</g, "\\u003c");
@@ -73,81 +70,30 @@ export default function Landing({ lang }) {
           </div>
         </header>
 
-        <Experience stops={c.flow ? c.flow.stops.map((s) => [s.name, ...s.entry]) : EMPTY} sample={c.sample ?? ""}>
-          <div data-reel>
-            <section className="hero">
-              <Rise delay={0.1}><p className="mono">{c.descriptor}</p></Rise>
-              <Headline text={c.headline} />
-              <Rise delay={0.8} className="hero-foot">
-                <div>
-                  <p>{c.sub}</p>
-                  {c.scene?.hint && <p className="fan-hint">{c.scene.hint}</p>}
-                </div>
-                <div className="acts">
-                  <Action href="#platform">{c.cta.primary} <ArrowRight size={17} /></Action>
-                  <Action href="#demo" line>{c.cta.secondary}</Action>
-                </div>
-              </Rise>
+        <Experience lang={lang} descriptor={c.descriptor} headline={c.headline}>
+          {c.flow && (
+            <section id="platform" className="block day">
+              <p className="mono">{c.flow.kicker}</p>
+              <h2>{c.flow.title}</h2>
+              <p className="lead">{c.sub}</p>
+              <div className="stops">
+                {c.flow.stops.map((s, i) => (
+                  <article key={s.name} className="stop">
+                    <p className="mono"><b>{String(i + 1).padStart(2, "0")}</b><Tag c={c} s={s.status} /></p>
+                    <h3>{s.name}</h3>
+                    <p className="stop-text">{s.text}</p>
+                    <div className="record">
+                      <strong>{s.record.head}</strong>
+                      <dl>{s.record.rows.map(([a, b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>
+                      <small>{c.sample}</small>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </section>
-
-            {c.problem && (
-              <section data-chapter className="chapter">
-                <div data-copy className="chapter-copy">
-                  <h2>{c.problem.title}</h2>
-                  <p>{c.problem.text}</p>
-                  <ul className="ticks">{c.problem.items.map((i) => <li key={i}>{i}</li>)}</ul>
-                </div>
-              </section>
-            )}
-
-            {c.flow && (
-              <>
-                <section id="platform" data-journey className="reel" style={{ "--stops": c.flow.stops.length }}>
-                  <div className="reel-pin">
-                    <div className="reel-head">
-                      <p className="mono">{c.flow.kicker}</p>
-                      <h2>{c.flow.title}</h2>
-                    </div>
-                    <div className="reel-stops">
-                      {c.flow.stops.map((s, i) => (
-                        <article key={s.name} data-stop={i} className="stop">
-                          <p className="mono"><b>{String(i + 1).padStart(2, "0")}</b><Tag c={c} s={s.status} /></p>
-                          <h3>{s.name}</h3>
-                          <p className="stop-text">{s.text}</p>
-                          <div className="record" data-record>
-                            <strong>{s.record.head}</strong>
-                            <dl>{s.record.rows.map(([a, b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>
-                            <small>{c.sample}</small>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                    <nav className="rail" aria-label={c.flow.progress}>
-                      <div className="rail-now"><span data-rail-count>1 / {c.flow.stops.length}</span> <span data-rail-name>{c.flow.stops[0].name}</span></div>
-                      <div className="rail-track"><i /></div>
-                      <ol>
-                        {c.flow.stops.map((s, i) => <li key={s.name}><button type="button" data-step={i}><span>{s.name}</span><em>{s.entry.join(": ")}</em></button></li>)}
-                      </ol>
-                    </nav>
-                    <svg className="leader" aria-hidden="true"><line /><circle r="4.5" /></svg>
-                  </div>
-                </section>
-                <section data-fold className="register">
-                  <div className="register-sheet">
-                    <h2>{c.flow.done}</h2>
-                    <p className="lead">{c.flow.doneText}</p>
-                    <ol>
-                      {c.flow.stops.map((s, i) => <li key={s.name}><b>{String(i + 1).padStart(2, "0")}</b><span>{s.entry[0]}</span><em>{s.entry[1]}</em></li>)}
-                    </ol>
-                    <small>{c.sample}</small>
-                  </div>
-                </section>
-              </>
-            )}
-          </div>
+          )}
 
           <div className="ground">
-            <div className="thread" data-thread aria-hidden="true"><i /></div>
             <p className="roadmap" id={c.flow ? undefined : "platform"}>{c.roadmap}</p>
             <section id="modules" className="block">
               <Rise inView><h2>{c.modulesTitle}</h2></Rise>

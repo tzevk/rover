@@ -1344,35 +1344,54 @@ async function main() {
     check(await seen(ownerPage, 'a[href^="tel:"]'), "customers' phone numbers can be tapped to call");
     await ownerPhone.close();
 
-    console.log("▸ The film");
+    console.log("▸ The shop");
     const filmBrowser = await chromium.launch({ channel: "chrome", args: ["--use-angle=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist", "--enable-unsafe-swiftshader"] });
     const filmCtx = await filmBrowser.newContext({ viewport: { width: 1180, height: 720 }, extraHTTPHeaders: { "x-forwarded-for": "198.51.100.9" } });
     const film = await newPage(filmCtx);
     await film.goto(`${BASE}/welcome`);
-    check(await film.waitForSelector(".exp[data-live] canvas", { timeout: 30000 }).then(() => true, () => false), "with 3D available, the film runs");
-    const nowShowing = () => film.locator(".stop[data-state='now'] h3").textContent(); // the card may still be fading in
-    await film.evaluate(() => { const j = document.querySelector("[data-journey]"); window.scrollTo(0, j.offsetTop + 40); });
-    await film.waitForFunction(() => document.querySelector(".stop[data-state='now']"), null, { timeout: 8000 });
-    check(await nowShowing() === "Order", "the journey starts at the order");
-    check(await film.locator("[data-rail-count]").textContent() === "1 / 9", "the progress rail starts at the first of nine stops");
-    await film.waitForTimeout(1500); // let the scroll above finish, as a person's would
-    await film.click('[data-step="5"]');
-    await film.waitForFunction(() => document.querySelector(".stop[data-state='now'] h3")?.textContent === "Invoice", null, { timeout: 15000 }).catch(() => {});
-    const jumpedTo = await nowShowing();
-    check(jumpedTo === "Invoice", `the rail jumps straight to a stop (${jumpedTo})`);
-    check(await film.locator(".rail button[data-state='past']").count() === 5, "stops already passed are marked on the rail");
-    // Smooth scrolling can still be finishing the jump at a frame or two a second, so keep asking.
-    const railDone = () => Number(document.querySelector(".rail").style.getPropertyValue("--done"));
-    await film.waitForFunction(() => {
-      const j = document.querySelector("[data-journey]");
-      window.scrollTo(0, j.offsetTop + j.offsetHeight - innerHeight);
-      return Number(document.querySelector(".rail").style.getPropertyValue("--done")) >= 0.99;
-    }, null, { timeout: 25000, polling: 700 }).catch(() => {});
-    const filled = await film.evaluate(railDone);
-    check(await nowShowing() === "Daily Cash" && filled >= 0.99, `the rail fills end to end by the last stop (${filled})`);
-    await film.evaluate(() => window.scrollTo(0, document.querySelector("[data-fold]").offsetTop));
-    check(await film.locator(".register li").count() === 9 && await seen(film, ".register h2"), "the journey ends on the finished register");
-    check(await film.locator(".register small").innerText() === "Sample data", "the figures in it are labelled as sample data");
+    check(await film.waitForSelector(".exp[data-painted] canvas", { timeout: 40000 }).then(() => true, () => false), "with 3D available, the shop is on screen");
+    const phase = () => film.evaluate(() => document.querySelector(".exp").dataset.phase);
+    const reach = (...want) => film.waitForFunction((list) => list.includes(document.querySelector(".exp").dataset.phase), want, { timeout: 40000 }).then(() => true, () => false);
+    const caption = () => film.locator(".caption").innerText();
+    await film.fill(".field input", "Sai Bakery");
+    await film.click(".trades label:has-text('Bakery')");
+    await film.click(".notice button[type=submit]");
+    check(await film.evaluate(() => document.documentElement.classList.contains("in-story")), "opening the shop holds the page on the story");
+    check(await reach("wait") && (await caption()).includes("Your people are in"), "the shutter lifts and the day starts at the counter");
+    const playBeat = async (expected) => {
+      const shown = await caption();
+      await film.click(".caption-act");
+      await film.waitForFunction(() => document.querySelector(".exp").dataset.phase !== "wait", null, { timeout: 40000 });
+      return shown.includes(expected);
+    };
+    check(await playBeat("Tick who came"), "attendance comes first");
+    await reach("wait");
+    check(await playBeat("Hotel Sai wants 100 cake boxes"), "the order is for the trade the visitor picked");
+    for (const beat of ["The day shift made 100", "The tempo is at the door", "Hotel Sai is on the phone", "Hotel Sai sent ₹5,000", "Tea for the shop"]) {
+      await reach("wait");
+      check(await playBeat(beat), `the day moves on: ${beat}`);
+    }
+    await reach("wait");
+    await film.click(".caption-act");
+    check(await reach("short") && (await caption()).includes("The register says ₹18,450. The box has ₹15,250."), "at closing the box is ₹3,200 short of the register");
+    await film.click(".caption .act");
+    await reach("rewind");
+    await film.click(".caption-act");
+    check(await reach("found") && (await film.locator(".daybook li[data-key]").innerText()).includes("₹3,200"), "turning the day back finds the diesel money");
+    check((await film.locator(".daybook li").count()) === 9 && (await film.locator(".daybook dl").innerText()).includes("₹0"), "the record shows every entry and a ₹0 difference");
+    await film.click(".caption .act");
+    await reach("shut");
+    await film.click(".caption-act");
+    check(await reach("closed") && (await film.locator(".notice-closed").innerText()).includes("Sai Bakery"), "the shutter comes down and the ending uses their name");
+    check(!(await film.evaluate(() => document.documentElement.classList.contains("in-story"))), "the page scrolls again when the story ends");
+    await film.click(".notice-closed .act:has-text('Book a Demo')");
+    check(await film.inputValue('.demo-form input[name="company"]') === "Sai Bakery", "the demo form already has their business name");
+    await film.goto(`${BASE}/welcome`);
+    await film.waitForSelector(".exp[data-painted]", { timeout: 40000 });
+    await film.click(".notice button[type=submit]");
+    await reach("wait");
+    await film.click(".story-bar button:has-text('Skip the story')");
+    check(await phase() === "street" && !(await film.evaluate(() => document.documentElement.classList.contains("in-story"))), "the story can be skipped at any point");
     await filmBrowser.close();
 
     const stillCtx = await browser.newContext({ reducedMotion: "reduce", viewport: { width: 1180, height: 720 }, extraHTTPHeaders: { "x-forwarded-for": "198.51.100.10" } });
@@ -1389,9 +1408,9 @@ async function main() {
     saving.on("response", (r) => { if (/three|Scene/i.test(r.url())) heavy3d.push(r.url()); });
     await saving.goto(`${BASE}/welcome`);
     await saving.waitForTimeout(1200);
-    check(await saving.locator("canvas").count() === 0 && await saving.evaluate(() => getComputedStyle(document.querySelector(".stage")).backgroundImage.includes("fan.webp")), "on a data-saving connection the still picture is shown instead");
+    check(await saving.locator("canvas").count() === 0 && await saving.evaluate(() => getComputedStyle(document.querySelector(".shop")).backgroundImage.includes("shutter.webp")), "on a data-saving connection the still picture is shown instead");
     await savingCtx.close();
-    const poster = await fetch(`${BASE}/fan.webp`);
+    const poster = await fetch(`${BASE}/shutter.webp`);
     check(poster.ok && (await poster.arrayBuffer()).byteLength < 120 * 1024, "the still picture is small");
 
     console.log("▸ Performance & cache");

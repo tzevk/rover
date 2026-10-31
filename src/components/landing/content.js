@@ -10,18 +10,10 @@ export const CONTENT = {
     descriptor: "Operations software for small businesses",
     headline: "Run your business from one place.",
     sub: "Orders, stock, staff, deliveries, invoices and cash, in one system, in English and Marathi.",
-    cta: { primary: "See how it works", secondary: "Book a Demo" },
-    scene: { hint: "Run your cursor along the fan. Each blade is one step of an order. Click one to open it." },
     roadmap: "Everything below works in the product today unless it's marked otherwise. Not included yet: e-invoicing (IRN) and live connections to government portals.",
-    problem: {
-      title: "Most small businesses still run on registers.",
-      text: "One book for orders, another for stock, another for cash. It works until a customer asks what they owe and someone has to go through all three.",
-      items: ["Stock written up in different registers", "Goods leaving without a record", "Orders and deliveries kept separately", "Customer payments and balances to chase", "Expenses and cash payouts to account for", "Attendance and wages worked out by hand", "No clear view of the day until it's over"],
-    },
     flow: {
       kicker: "One order, start to finish",
       title: "Follow one order through your business.",
-      progress: "Through the order",
       stops: [
         { name: "Order", status: "available", text: "Take the order with its customer, item, quantity and rate. The stock is held for it straight away.", record: { head: "Order #1042", rows: [["Customer", "Patil Motors"], ["Quantity", "200 pieces"], ["Rate", "₹45"]] }, entry: ["Order #1042", "Patil Motors"] },
         { name: "Stock", status: "available", text: "See what's on hand, what's booked and what's free before you promise a date.", record: { head: "MS brackets", rows: [["On hand", "640 pieces"], ["Booked", "200 pieces"], ["Available", "440 pieces"]] }, entry: ["In stock", "640 pieces"] },
@@ -33,8 +25,6 @@ export const CONTENT = {
         { name: "Expenses", status: "available", text: "Fuel, repairs and daily spending go in as they happen, not at the end of the month.", record: { head: "Today", rows: [["Fuel", "₹2,400"], ["Repairs", "₹1,150"], ["Tea and food", "₹180"]] }, entry: ["Spent today", "₹3,730"] },
         { name: "Daily Cash", status: "available", text: "Count the cash box at closing. If it's short or over, you know that evening.", record: { head: "Daily cash", rows: [["Should be in the box", "₹18,450"], ["Counted", "₹18,450"], ["Difference", "₹0"]] }, entry: ["Cash closed", "₹0 difference"] },
       ],
-      done: "One order, start to finish, in one record.",
-      doneText: "The same register you keep by hand, filled in as the work happens.",
     },
     modulesTitle: "What's included",
     modules: [
@@ -109,14 +99,11 @@ export const CONTENT = {
     descriptor: "लहान व्यवसायांसाठी कामकाज सॉफ्टवेअर",
     headline: "तुमचा व्यवसाय एकाच ठिकाणाहून चालवा.",
     sub: "मागण्या, साठा, कर्मचारी, वितरण, बीजके आणि रोख, एकाच प्रणालीत, मराठी व इंग्रजीत.",
-    cta: { primary: "हे कसे चालते ते पाहा", secondary: "डेमो ठरवा" },
-    scene: { hint: "पंख्यावरून कर्सर फिरवा. प्रत्येक पाते मागणीची एक पायरी आहे. उघडण्यासाठी क्लिक करा." },
     roadmap: "वेगळे नमूद केलेले सोडून खालील सर्व आज उत्पादनात चालते. अद्याप समाविष्ट नाही: ई-इनव्हॉइसिंग (IRN) आणि शासकीय पोर्टलशी थेट जोडणी.",
     sample: "नमुना माहिती",
     flow: {
       kicker: "एक मागणी, सुरुवातीपासून शेवटपर्यंत",
       title: "एका मागणीचा तुमच्या व्यवसायातील प्रवास पाहा.",
-      progress: "मागणीचा प्रवास",
       stops: [
         { name: "मागणी", status: "available", text: "ग्राहक, वस्तू, परिमाण आणि दरासह मागणी नोंदवा. साठा लगेच राखून ठेवला जातो.", record: { head: "मागणी #1042", rows: [["ग्राहक", "पाटील मोटर्स"], ["परिमाण", "२०० नग"], ["दर", "₹४५"]] }, entry: ["मागणी #1042", "पाटील मोटर्स"] },
         { name: "साठा", status: "available", text: "तारीख देण्यापूर्वी किती आहे, किती नोंदले आहे आणि किती शिल्लक आहे ते पाहा.", record: { head: "एमएस ब्रॅकेट्स", rows: [["उपलब्ध साठा", "६४० नग"], ["नोंदलेला", "२०० नग"], ["शिल्लक", "४४० नग"]] }, entry: ["साठ्यात", "६४० नग"] },
@@ -128,8 +115,6 @@ export const CONTENT = {
         { name: "खर्च", status: "available", text: "इंधन, दुरुस्ती आणि रोजचा खर्च होताच नोंदवा, महिनाअखेरीस नाही.", record: { head: "आज", rows: [["इंधन", "₹२,४००"], ["दुरुस्ती", "₹१,१५०"], ["चहा व जेवण", "₹१८०"]] }, entry: ["आजचा खर्च", "₹३,७३०"] },
         { name: "दैनिक रोख", status: "available", text: "बंद करताना रोख पेटी मोजा. कमी किंवा जास्त असल्यास त्याच संध्याकाळी कळते.", record: { head: "दैनिक रोख", rows: [["पेटीत असायला हवे", "₹१८,४५०"], ["मोजलेली", "₹१८,४५०"], ["फरक", "₹०"]] }, entry: ["रोख बंद", "₹० फरक"] },
       ],
-      done: "एक मागणी, सुरुवातीपासून शेवटपर्यंत, एकाच नोंदीत.",
-      doneText: "तीच नोंदवही जी तुम्ही हाताने लिहिता, काम होताच भरलेली.",
     },
     modulesTitle: "काय समाविष्ट आहे",
     modules: [
