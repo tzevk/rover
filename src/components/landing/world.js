@@ -18,8 +18,8 @@ export const SHOTS = [
   { eye: [3.2, 1.28, 1], aim: [3.2, 1.05, -0.55] },     // order: held
   { eye: [2.5, 1.05, 3.2], aim: [3.7, 0.72, 0.8] },     // dispatch: on the hand truck
   { eye: [29.8, 1.7, 7.6], aim: [30.9, 1.62, -1] },         // delivery: at the customer's door
-  { eye: [29.45, 1.25, 1], aim: [29.3, 0.36, -0.36] },  // invoice
-  { eye: [29.42, 1.1, 0.72], aim: [29.28, 0.38, -0.36] },   // payment
+  { eye: [31.25, 1.25, 1.05], aim: [31.08, 0.36, -0.31] },  // invoice
+  { eye: [31.22, 1.1, 0.77], aim: [31.06, 0.38, -0.31] },   // payment
   { eye: [-3.8, 1.5, 2.1], aim: [-4.2, 1.06, 0] },   // daily cash: the till
 ];
 

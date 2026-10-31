@@ -363,10 +363,10 @@ function Film({ live, mobile, maxDpr }) {
       lean.position.set(STREET.x + 1.72, 0.3, -1.44);
       lean.rotation.x = -0.1;
       street.add(lean);
-      s.door = place(boxed(), STREET.x - 0.75, 0.002, -0.35, 0.28);
+      s.door = place(boxed(), STREET.x + 1.05, 0.002, -0.3, -0.24);
       street.add(s.door);
       const atDoor = truck.clone();
-      place(atDoor, STREET.x - 1.45, 0, -0.6, 0.5);
+      place(atDoor, STREET.x + 0.42, 0, -0.62, 0.5);
       street.add(atDoor);
       place(clipboard, s.front.x, s.front.top + 0.002, 0.02, 0.2);
       fitHeight(clipboard, 0.03);
