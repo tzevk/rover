@@ -32,8 +32,9 @@ export default function Experience({ descriptor, headline, sub, cta, journey, sa
     const settle = () => { delete el.dataset.live; el.dataset.still = "true"; el.querySelectorAll("[data-row]").forEach((row) => { row.dataset.state = "past"; }); };
     if (matchMedia("(prefers-reduced-motion: reduce)").matches || !canRender3D()) { settle(); return; }
     el.dataset.live = "true";
-    const giveUp = setTimeout(settle, 20000);    // if it can't start, the page stays as the picture
+    const giveUp = setTimeout(settle, 30000);    // if it can't start, the page stays as the picture
     l.onReady = () => { clearTimeout(giveUp); el.dataset.painted = "true"; };
+    l.onFail = settle;
     const opening = setTimeout(() => setStage({ mobile: innerWidth < 900 }), 400);
 
     const rows = [...el.querySelectorAll("[data-row]")], steps = [...el.querySelectorAll("[data-step]")];
@@ -94,6 +95,7 @@ export default function Experience({ descriptor, headline, sub, cta, journey, sa
           <div className="stage" aria-hidden="true">
             {stage && <Scene live={live} mobile={stage.mobile} active={active} />}
           </div>
+          <div className="dip" aria-hidden="true" />
           <div className="hero">
             <Rise delay={0.1}><p className="mono">{descriptor}</p></Rise>
             <Headline text={headline} />

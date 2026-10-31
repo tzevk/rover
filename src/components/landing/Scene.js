@@ -3,14 +3,19 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { BELT, clamp, lerp, PLACE, ramp, SHOTS } from "./world";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
+import { GroundedSkybox } from "three/addons/objects/GroundedSkybox.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { clamp, CUTS, DESK, lerp, RACK, ramp, SHOTS, STREET, TILL } from "./world";
 
-// One steel bracket's journey down a clean, working line: pressed, boxed, racked, loaded, delivered,
-// billed and paid. Everything is built and painted here in the browser, and everything on the line
-// that isn't the product keeps moving on its own, so the place feels alive even when you stop.
-const PAGE = "#f8f3e8";
+// One bracket's journey, filmed. The places are photographed panoramas and the objects are 3D scans
+// (Poly Haven, CC0), lit by the same photographs, so they sit in the world the way real things do.
+const FILES = "/shop";
+const model = (name) => `${FILES}/${name}/${name}.gltf`;
 
 const canvasOf = (w, h, draw) => {
   const c = document.createElement("canvas");
@@ -19,411 +24,141 @@ const canvasOf = (w, h, draw) => {
   draw(c.getContext("2d"), w, h);
   return c;
 };
-const speck = (x, n, w, h, dark, light, size = 2) => {
-  for (let i = 0; i < n; i++) {
-    x.fillStyle = Math.random() < 0.5 ? dark : light;
-    x.fillRect(Math.random() * w, Math.random() * h, Math.random() * size + 0.5, Math.random() * size + 0.5);
-  }
-};
-function texture(canvas, gl, repeat) {
+function painted(canvas, gl) {
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
-  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); }
   return t;
 }
 
-// Polished concrete, with soft cloudy patches and fine aggregate.
-const concrete = () => canvasOf(1024, 1024, (x, w, h) => {
-  x.fillStyle = "#efe9dd";
+const shippingLabel = () => canvasOf(720, 480, (x, w, h) => {
+  x.fillStyle = "#f7f4ec";
   x.fillRect(0, 0, w, h);
-  for (let i = 0; i < 90; i++) {
-    const px = Math.random() * w, py = Math.random() * h, r = 60 + Math.random() * 170, g = x.createRadialGradient(px, py, 0, px, py, r);
-    g.addColorStop(0, Math.random() < 0.5 ? "rgba(255, 252, 244, 0.2)" : "rgba(190, 178, 158, 0.12)");
-    g.addColorStop(1, "rgba(0, 0, 0, 0)");
-    x.fillStyle = g;
-    x.fillRect(px - r, py - r, r * 2, r * 2);
-  }
-  speck(x, 26000, w, h, "rgba(120, 108, 90, 0.12)", "rgba(255, 255, 255, 0.16)");
+  x.fillStyle = "#1c1b18";
+  x.font = "700 52px Arial, sans-serif";
+  x.fillText("MS BRACKET", 34, 76);
+  x.font = "30px Arial, sans-serif";
+  x.fillText("200 pieces   Order #1042", 34, 124);
+  x.fillText("The Motor Shop", 34, 164);
+  for (let px = 34; px < 590;) { const b = 2 + Math.floor(Math.random() * 9); x.fillRect(px, 200, b, 190); px += b + 2 + Math.floor(Math.random() * 8); }
+  x.font = "26px monospace";
+  x.fillText("RK 26-27 001042", 150, 438);
+  x.fillStyle = "#c9770a";
+  x.fillRect(600, 34, 88, 88);
+  x.fillStyle = "#f7f4ec";
+  x.font = "700 46px Arial, sans-serif";
+  x.fillText("RK", 612, 96);
 });
 
-// Corrugated kraft board, with the flutes showing as faint stripes.
-const kraft = () => canvasOf(512, 512, (x, w, h) => {
-  x.fillStyle = "#c79c6b";
-  x.fillRect(0, 0, w, h);
-  for (let i = 0; i < h; i += 7) { x.fillStyle = `rgba(110, 72, 34, ${0.05 + Math.random() * 0.05})`; x.fillRect(0, i, w, 3); }
-  speck(x, 9000, w, h, "rgba(90, 58, 26, 0.16)", "rgba(240, 214, 176, 0.16)");
-});
-
-// The finished box: kraft, packing tape over the top, and a printed shipping label on the front.
-const cartonFace = (label) => canvasOf(768, 512, (x, w, h) => {
-  x.drawImage(kraft(), 0, 0, w, h);
-  if (!label) return;
-  x.fillStyle = "#fffdf7";
-  x.fillRect(70, 86, 440, 340);
-  x.fillStyle = "#1f1d17";
-  x.font = "700 40px sans-serif";
-  x.fillText("MS BRACKET", 96, 150);
-  x.font = "26px sans-serif";
-  x.fillText("Order #1042   200 pieces", 96, 194);
-  x.fillText("Patil Motors, Pune", 96, 232);
-  for (let i = 0, px = 96; px < 480; i++) { const b = 2 + Math.floor(Math.random() * 7); x.fillRect(px, 262, b, 100); px += b + 2 + Math.floor(Math.random() * 6); }
-  x.font = "20px monospace";
-  x.fillText("RK 26-27 001042", 150, 396);
+const heldSticker = () => canvasOf(360, 150, (x, w, h) => {
   x.fillStyle = "#e8940c";
-  x.fillRect(560, 86, 130, 130);
-  x.fillStyle = "#fffdf7";
-  x.font = "700 62px sans-serif";
-  x.fillText("RK", 582, 172);
-});
-
-const beltCanvas = () => canvasOf(256, 256, (x, w, h) => {
-  x.fillStyle = "#2c2d2e";
   x.fillRect(0, 0, w, h);
-  for (let i = 0; i < w; i += 32) { x.fillStyle = "#3a3b3c"; x.fillRect(i, 0, 10, h); }
-  speck(x, 5000, w, h, "rgba(0, 0, 0, 0.3)", "rgba(255, 255, 255, 0.05)", 1.5);
+  x.fillStyle = "#1c1b18";
+  x.font = "700 64px Arial, sans-serif";
+  x.textAlign = "center";
+  x.fillText("HELD", w / 2, 78);
+  x.font = "30px Arial, sans-serif";
+  x.fillText("Order #1042", w / 2, 124);
 });
 
-const brushed = () => canvasOf(512, 512, (x, w, h) => {
-  x.fillStyle = "#8a8a8a";
-  x.fillRect(0, 0, w, h);
-  for (let i = 0; i < 2600; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? "255,255,255" : "0,0,0"}, 0.1)`; x.fillRect(Math.random() * w, Math.random() * h, 40 + Math.random() * 260, 1); }
-});
-
-const paperSheet = () => canvasOf(620, 860, (x, w) => {
-  x.fillStyle = "#fffdf7";
-  x.fillRect(0, 0, w, 860);
-  x.fillStyle = "#1f1d17";
-  x.font = "600 44px Georgia, serif";
-  x.fillText("Tax Invoice", 44, 86);
-  x.font = "26px sans-serif";
-  x.fillText("RK/26-27/00042", 44, 130);
-  x.fillStyle = "#e8940c";
-  x.fillRect(44, 156, w - 88, 6);
-  x.fillStyle = "#1f1d17";
+const invoicePage = () => canvasOf(690, 980, (x, w) => {
+  x.fillStyle = "#fbf9f3";
+  x.fillRect(0, 0, w, 980);
+  x.fillStyle = "#1c1b18";
+  x.font = "600 54px Georgia, serif";
+  x.fillText("Tax Invoice", 52, 110);
+  x.font = "28px Arial, sans-serif";
+  x.fillText("RK/26-27/00042", 52, 158);
+  x.fillText("The Motor Shop", 52, 198);
+  x.fillStyle = "#c9770a";
+  x.fillRect(52, 224, w - 104, 5);
   [["MS bracket, 200 pieces", "₹9,000"], ["GST 18%", "₹1,620"], ["Total", "₹10,620"]].forEach(([a, b], i) => {
-    const y = 226 + i * 66;
-    x.font = i === 2 ? "700 30px sans-serif" : "28px sans-serif";
+    const y = 300 + i * 74;
+    x.fillStyle = "#1c1b18";
+    x.font = i === 2 ? "700 34px Arial, sans-serif" : "30px Arial, sans-serif";
     x.textAlign = "left";
-    x.fillText(a, 44, y);
+    x.fillText(a, 52, y);
     x.textAlign = "right";
-    x.fillText(b, w - 44, y);
-    x.fillStyle = "rgba(31, 29, 23, 0.16)";
-    x.fillRect(44, y + 20, w - 88, 2);
-    x.fillStyle = "#1f1d17";
+    x.fillText(b, w - 52, y);
+    x.fillStyle = "rgba(28, 27, 24, 0.16)";
+    x.fillRect(52, y + 22, w - 104, 2);
   });
 });
 
-const stampCanvas = () => canvasOf(420, 170, (x, w, h) => {
-  x.strokeStyle = x.fillStyle = "#2c7a43";
-  x.lineWidth = 9;
-  x.strokeRect(8, 8, w - 16, h - 16);
-  x.font = "700 92px sans-serif";
+const paidStamp = () => canvasOf(460, 190, (x, w, h) => {
+  x.strokeStyle = x.fillStyle = "#1f7a45";
+  x.lineWidth = 10;
+  x.strokeRect(10, 10, w - 20, h - 20);
+  x.font = "700 108px Arial, sans-serif";
   x.textAlign = "center";
-  x.fillText("PAID", w / 2, 122);
+  x.fillText("PAID", w / 2, 136);
+  x.globalCompositeOperation = "destination-out";
+  for (let i = 0; i < 900; i++) x.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 4, 1 + Math.random() * 2);
 });
 
-const signCanvas = () => canvasOf(1024, 200, (x, w, h) => {
-  x.fillStyle = "#2f6f6b";
+const shopSign = () => canvasOf(1400, 280, (x, w, h) => {
+  x.fillStyle = "#23403d";
   x.fillRect(0, 0, w, h);
-  x.fillStyle = "#fffdf7";
-  x.font = "600 104px Georgia, serif";
+  x.fillStyle = "#efe6cf";
+  x.font = "600 150px Georgia, serif";
   x.textAlign = "center";
-  x.fillText("Patil Motors", w / 2, 138);
+  x.fillText("The Motor Shop", w / 2, 192);
+  x.strokeStyle = "#c9a35a";
+  x.lineWidth = 8;
+  x.strokeRect(20, 20, w - 40, h - 40);
+  x.globalCompositeOperation = "multiply";
+  for (let i = 0; i < 2400; i++) { x.fillStyle = `rgba(90, 70, 50, ${Math.random() * 0.1})`; x.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 30, 1 + Math.random() * 2); }
 });
 
-const plateCanvas = () => canvasOf(420, 100, (x, w, h) => {
-  x.fillStyle = "#fffdf7";
+const radialFade = () => canvasOf(512, 512, (x, w, h) => {
+  const g = x.createRadialGradient(w / 2, h / 2, w * 0.12, w / 2, h / 2, w * 0.5);
+  g.addColorStop(0, "#fff");
+  g.addColorStop(1, "#000");
+  x.fillStyle = g;
   x.fillRect(0, 0, w, h);
-  x.fillStyle = "#1f1d17";
-  x.font = "700 62px monospace";
-  x.textAlign = "center";
-  x.fillText("MH 12 AB 1234", w / 2, 72, w - 24);
 });
 
-function plateShape(w, d) {
-  const s = new THREE.Shape(), r = 3;
+function bracketShape(w, d) {
+  const s = new THREE.Shape(), r = 0.004;
   s.moveTo(-w / 2 + r, -d / 2);
   s.lineTo(w / 2 - r, -d / 2); s.quadraticCurveTo(w / 2, -d / 2, w / 2, -d / 2 + r);
   s.lineTo(w / 2, d / 2 - r); s.quadraticCurveTo(w / 2, d / 2, w / 2 - r, d / 2);
   s.lineTo(-w / 2 + r, d / 2); s.quadraticCurveTo(-w / 2, d / 2, -w / 2, d / 2 - r);
   s.lineTo(-w / 2, -d / 2 + r); s.quadraticCurveTo(-w / 2, -d / 2, -w / 2 + r, -d / 2);
-  [[-w * 0.27, 0], [w * 0.27, 0]].forEach(([x, y]) => { const hole = new THREE.Path(); hole.absarc(x, y, 3.1, 0, 7, true); s.holes.push(hole); });
+  [-0.27, 0.27].forEach((k) => { const hole = new THREE.Path(); hole.absarc(w * k, 0, 0.0052, 0, 7, true); s.holes.push(hole); });
   return s;
 }
 
-// The product: an L-shaped mild steel bracket with two mounting holes on each face.
-function makeBracket(steel) {
-  const g = new THREE.Group(), options = { depth: 2.2, bevelEnabled: true, bevelThickness: 0.35, bevelSize: 0.35, bevelSegments: 2, curveSegments: 14 };
-  const plate = new THREE.ExtrudeGeometry(plateShape(38, 20), options);
+// The product: a mild steel L bracket, about 11 cm long.
+function makeBracket() {
+  const noise = canvasOf(512, 512, (x, w, h) => {
+    x.fillStyle = "#858585";
+    x.fillRect(0, 0, w, h);
+    for (let i = 0; i < 3200; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? "255,255,255" : "0,0,0"}, 0.09)`; x.fillRect(Math.random() * w, Math.random() * h, 30 + Math.random() * 220, 1); }
+  });
+  const rough = new THREE.CanvasTexture(noise);
+  const steel = new THREE.MeshStandardMaterial({ color: "#b9bdc0", metalness: 1, roughness: 0.56, roughnessMap: rough, envMapIntensity: 1.3 });
+  const plate = new THREE.ExtrudeGeometry(bracketShape(0.11, 0.058), { depth: 0.0045, bevelEnabled: true, bevelThickness: 0.0006, bevelSize: 0.0006, bevelSegments: 2, curveSegments: 16 });
   plate.rotateX(-Math.PI / 2);
-  const base = new THREE.Mesh(plate, steel), wall = new THREE.Mesh(plate, steel);
+  const g = new THREE.Group(), base = new THREE.Mesh(plate, steel), wall = new THREE.Mesh(plate, steel);
   wall.rotation.z = Math.PI / 2;
-  wall.position.set(-17.6, 17.4, 0);
-  base.castShadow = wall.castShadow = true;
-  base.receiveShadow = wall.receiveShadow = true;
+  wall.position.set(-0.052, 0.05, 0);
+  base.castShadow = wall.castShadow = base.receiveShadow = wall.receiveShadow = true;
   g.add(base, wall);
   return g;
 }
 
-function block(w, h, d, material, r = 1.6, x = 0, y = 0, z = 0) {
-  const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, Math.min(r, Math.min(w, h, d) / 2 - 0.01)), material);
-  m.position.set(x, y, z);
-  m.castShadow = m.receiveShadow = true;
-  return m;
+function prepare(object) {
+  object.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+  return object;
 }
-const face = (w, h, material, x, y, z, ry = 0) => {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), material);
-  m.position.set(x, y, z);
-  m.rotation.y = ry;
-  return m;
-};
-
-function buildLine(gl, mobile) {
-  const world = new THREE.Group();
-  const white = new THREE.MeshStandardMaterial({ color: "#f5f2ea", roughness: 0.42, metalness: 0.02 });
-  const graphite = new THREE.MeshStandardMaterial({ color: "#34383c", roughness: 0.5, metalness: 0.35 });
-  const amber = new THREE.MeshStandardMaterial({ color: "#e8940c", roughness: 0.38 });
-  const teal = new THREE.MeshStandardMaterial({ color: "#2f6f6b", roughness: 0.46 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: "#1d2629", roughness: 0.06, metalness: 0.5, clearcoat: 1 });
-  const chrome = new THREE.MeshStandardMaterial({ color: "#cfd2d2", roughness: 0.2, metalness: 1 });
-  const streaks = texture(brushed(), gl, [1, 1]);
-  streaks.colorSpace = THREE.NoColorSpace;
-  const steel = new THREE.MeshStandardMaterial({ color: "#c9cdd0", metalness: 1, roughness: 0.62, roughnessMap: streaks, envMapIntensity: 1.25 });
-  const board = new THREE.MeshStandardMaterial({ map: texture(kraft(), gl), roughness: 0.84 });
-  const labelled = new THREE.MeshStandardMaterial({ map: texture(cartonFace(true), gl), roughness: 0.78 });
-  const plain = new THREE.MeshStandardMaterial({ map: texture(cartonFace(false), gl), roughness: 0.84 });
-
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(5200, 3200), new THREE.MeshStandardMaterial({ map: texture(concrete(), gl, [7, 4.5]), roughness: 0.34, envMapIntensity: 0.5 }));
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.set(600, 0, 0);
-  floor.receiveShadow = true;
-  world.add(floor);
-
-  // The amber line painted on the floor fills in behind the product.
-  const fill = { value: 0 };
-  const lineMaterial = new THREE.ShaderMaterial({
-    uniforms: { uFill: fill }, transparent: true,
-    vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-    fragmentShader: "uniform float uFill; varying vec2 vUv; void main() { float done = step(vUv.x, uFill); gl_FragColor = vec4(mix(vec3(0.8, 0.76, 0.68), vec3(0.91, 0.58, 0.05), done), mix(0.5, 1.0, done)); }",
-  });
-  const line = new THREE.Mesh(new THREE.PlaneGeometry(1400, 2.6), lineMaterial);
-  line.rotation.x = -Math.PI / 2;
-  line.position.set(600, 0.4, 62);
-  world.add(line);
-
-  // Conveyor from the press, past the packing station, to the rack.
-  const beltTexture = texture(beltCanvas(), gl, [20, 1]);
-  const beltTop = new THREE.Mesh(new THREE.PlaneGeometry(570, 46), new THREE.MeshStandardMaterial({ map: beltTexture, roughness: 0.66 }));
-  beltTop.rotation.x = -Math.PI / 2;
-  beltTop.position.set(180, BELT, 0);
-  beltTop.receiveShadow = true;
-  world.add(beltTop);
-  world.add(block(574, 7, 4, graphite, 1, 180, BELT - 2.5, 25), block(574, 7, 4, graphite, 1, 180, BELT - 2.5, -25));
-  const rollers = [];
-  for (let i = 0; i < 2; i++) {
-    const roll = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 50, 24), chrome);
-    roll.rotation.x = Math.PI / 2;
-    roll.position.set(-105 + i * 570, BELT - 5, 0);
-    rollers.push(roll);
-    world.add(roll);
-  }
-  for (let x = -90; x <= 450; x += 90) world.add(block(5, BELT - 6, 42, graphite, 1, x, (BELT - 6) / 2, 0));
-
-  // The press: frame, moving head, and a light that shows it's running.
-  const press = new THREE.Group();
-  press.add(block(90, 26, 76, white, 3, 0, 13, 0), block(13, 134, 13, graphite, 3, -33, 67, -28), block(13, 134, 13, graphite, 3, 33, 67, -28), block(13, 134, 13, graphite, 3, -33, 67, 28), block(13, 134, 13, graphite, 3, 33, 67, 28));
-  press.add(block(92, 30, 78, white, 4, 0, 146, 0), block(60, 4, 4, amber, 1.6, 0, 146, 40));
-  const head = new THREE.Group();
-  head.add(block(62, 16, 52, chrome, 2, 0, 0, 0), block(13, 40, 13, chrome, 3, 0, 26, 0));
-  head.position.y = 100;
-  press.add(head);
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(2.4, 16, 12), new THREE.MeshStandardMaterial({ color: "#3fbf72", emissive: "#3fbf72", emissiveIntensity: 2 }));
-  lamp.position.set(36, 146, 40);
-  press.add(lamp);
-  world.add(press);
-
-  // Brackets on the belt ahead of ours, and more cartons passing.
-  const crowd = Array.from({ length: mobile ? 3 : 5 }, () => { const b = makeBracket(steel); b.position.y = BELT + 0.6; world.add(b); return b; });
-  const product = makeBracket(steel);
-  product.position.y = BELT + 0.6;
-  world.add(product);
-
-  // The packing arch over the belt.
-  world.add(block(9, 86, 9, white, 2, PLACE.packer - 44, 43, 40), block(9, 86, 9, white, 2, PLACE.packer + 44, 43, 40), block(9, 86, 9, white, 2, PLACE.packer - 44, 43, -40), block(9, 86, 9, white, 2, PLACE.packer + 44, 43, -40));
-  world.add(block(100, 12, 92, white, 2, PLACE.packer, 92, 0), block(70, 3, 3, amber, 1.2, PLACE.packer, 92, 47));
-
-  // The carton: walls and base, with flaps that fold shut, and the sealed box that replaces them.
-  const SIZE = { w: 56, h: 40, d: 44 };
-  const carton = new THREE.Group();
-  const open = new THREE.Group();
-  [[0, 0.6, 0, SIZE.w, 1.2, SIZE.d], [0, SIZE.h / 2, SIZE.d / 2, SIZE.w, SIZE.h, 1.2], [0, SIZE.h / 2, -SIZE.d / 2, SIZE.w, SIZE.h, 1.2], [SIZE.w / 2, SIZE.h / 2, 0, 1.2, SIZE.h, SIZE.d], [-SIZE.w / 2, SIZE.h / 2, 0, 1.2, SIZE.h, SIZE.d]].forEach(([x, y, z, w, h, d]) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), board);
-    m.position.set(x, y, z);
-    m.castShadow = m.receiveShadow = true;
-    open.add(m);
-  });
-  const flaps = [[0, 1], [0, -1], [1, 0], [-1, 0]].map(([sx, sz]) => {
-    const hinge = new THREE.Group();
-    hinge.position.set((sx * SIZE.w) / 2, SIZE.h, (sz * SIZE.d) / 2);
-    const long = sx === 0, w = long ? SIZE.w : SIZE.d;
-    const flap = new THREE.Mesh(new THREE.BoxGeometry(w, 1.1, long ? SIZE.d / 2 : SIZE.w / 2), board);
-    flap.position.z = (long ? SIZE.d : SIZE.w) / 4;
-    flap.castShadow = true;
-    const swing = new THREE.Group();
-    swing.add(flap);
-    hinge.add(swing);
-    hinge.rotation.y = sx === 0 ? (sz > 0 ? 0 : Math.PI) : (sx > 0 ? Math.PI / 2 : -Math.PI / 2);
-    open.add(hinge);
-    return swing;
-  });
-  const sealed = new THREE.Group();
-  const shut = block(SIZE.w, SIZE.h, SIZE.d, plain, 0.7, 0, SIZE.h / 2, 0);
-  const front = face(SIZE.w - 1, SIZE.h - 1, labelled, 0, SIZE.h / 2, SIZE.d / 2 + 0.08);
-  const tape = new THREE.Mesh(new THREE.BoxGeometry(SIZE.w + 0.6, 0.15, 9), new THREE.MeshPhysicalMaterial({ color: "#e0bf8a", roughness: 0.22, clearcoat: 0.8, transparent: true, opacity: 0.82 }));
-  tape.position.y = SIZE.h + 0.1;
-  sealed.add(shut, front, tape);
-  carton.add(open, sealed);
-  world.add(carton);
-
-  // Pallet rack, stocked, with one empty place for ours.
-  const rack = new THREE.Group();
-  const orange = new THREE.MeshStandardMaterial({ color: "#d9791a", roughness: 0.44, metalness: 0.2 });
-  [0, 96, 192, 288].forEach((x) => [-1, 1].forEach((side) => rack.add(block(5, 176, 5, teal, 1.2, x, 88, side * 34))));
-  [34, 92, 150].forEach((y) => [-1, 1].forEach((side) => rack.add(block(292, 6, 4, orange, 1.2, 144, y, side * 34))));
-  [34, 92, 150].forEach((y) => rack.add(block(292, 1.6, 72, new THREE.MeshStandardMaterial({ color: "#d8d3c6", roughness: 0.6 }), 0.5, 144, y + 3.6, 0)));
-  const stacked = new THREE.InstancedMesh(new RoundedBoxGeometry(56, 40, 44, 2, 0.7), new THREE.MeshStandardMaterial({ map: texture(cartonFace(true), gl), roughness: 0.8 }), 11);
-  stacked.castShadow = true;
-  let slot = 0;
-  const m4 = new THREE.Matrix4();
-  [34, 92, 150].forEach((y, row) => [0, 1, 2, 3].forEach((c) => {
-    if (row === 1 && c === 1) return;
-    m4.makeTranslation(33 + c * 72, y + 24.4, 0);
-    stacked.setMatrixAt(slot++, m4);
-  }));
-  rack.add(stacked);
-  rack.position.set(PLACE.rack, 0, -60);
-  world.add(rack);
-  const HOME = { x: PLACE.rack + 33 + 72, y: 92 + 4.4, z: -60 };
-
-  // The tag that goes on when the box is held for an order.
-  const tag = block(26, 12, 1.2, amber, 0.5);
-  world.add(tag);
-
-  // A low carrier that runs goods across the floor.
-  const carrier = new THREE.Group();
-  carrier.add(block(74, 11, 56, white, 3.4, 0, 8.5, 0), block(62, 1.6, 44, graphite, 0.6, 0, 14.6, 0), block(40, 1.6, 1.4, amber, 0.5, 0, 8.5, 28.4));
-  world.add(carrier);
-
-  // The truck: cab, box body, wheels, and a roller door at the back.
-  const truck = new THREE.Group();
-  const white2 = new THREE.MeshPhysicalMaterial({ color: "#f7f5ef", roughness: 0.28, clearcoat: 0.7, clearcoatRoughness: 0.2 });
-  truck.add(block(190, 84, 82, white2, 3, 0, 70, 0), block(190, 8, 83, amber, 1, 0, 42, 0));
-  truck.add(block(72, 72, 78, teal, 10, 136, 58, 0), block(46, 30, 79, glass, 7, 142, 74, 0), block(3, 26, 70, glass, 2, 172, 72, 0));
-  truck.add(block(250, 7, 62, graphite, 1, 34, 24, 0));
-  const wheels = [[-56, 42], [-56, -42], [134, 42], [134, -42]].map(([x, z]) => {
-    const w = new THREE.Group(), tyre = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 13, 32), new THREE.MeshStandardMaterial({ color: "#1f2022", roughness: 0.82 }));
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 13.6, 8), chrome);
-    tyre.rotation.x = hub.rotation.x = Math.PI / 2;
-    tyre.castShadow = true;
-    w.add(tyre, hub);
-    w.position.set(x, 18, z);
-    truck.add(w);
-    return w;
-  });
-  const plate = face(30, 7, new THREE.MeshStandardMaterial({ map: texture(plateCanvas(), gl), roughness: 0.4 }), -97, 34, 0, -Math.PI / 2);
-  truck.add(plate);
-  const door = block(2, 80, 78, new THREE.MeshStandardMaterial({ color: "#dedbd2", roughness: 0.5 }), 0.8, -96, 70, 0);
-  truck.add(door);
-  world.add(truck);
-  // Lane markings for the road out.
-  for (let x = 860; x < 1500; x += 90) { const dash = new THREE.Mesh(new THREE.PlaneGeometry(46, 2.4), new THREE.MeshStandardMaterial({ color: "#d9d3c5", roughness: 0.6 })); dash.rotation.x = -Math.PI / 2; dash.position.set(x, 0.3, 112); world.add(dash); }
-
-  // The customer's premises.
-  const shop = new THREE.Group();
-  shop.add(block(300, 150, 120, white, 3, 0, 75, -40), block(308, 8, 128, teal, 2, 0, 154, -40));
-  shop.add(face(150, 29, new THREE.MeshStandardMaterial({ map: texture(signCanvas(), gl), roughness: 0.5 }), 0, 128, 20.6));
-  shop.add(block(92, 96, 3, glass, 1, -8, 48, 19.8));
-  shop.position.set(PLACE.customer, 0, -130);
-  world.add(shop);
-  const DOOR = { x: PLACE.customer - 8, z: -66 };
-
-  const sheetMaterial = new THREE.MeshStandardMaterial({ map: texture(paperSheet(), gl), roughness: 0.82, side: THREE.DoubleSide });
-  const sheet = new THREE.Mesh(new THREE.PlaneGeometry(30, 41.6), sheetMaterial);
-  sheet.rotation.x = -Math.PI / 2;
-  sheet.castShadow = true;
-  world.add(sheet);
-  const paid = new THREE.Mesh(new THREE.PlaneGeometry(20, 8.1), new THREE.MeshBasicMaterial({ map: texture(stampCanvas(), gl), transparent: true, opacity: 0, depthWrite: false }));
-  paid.rotation.set(-Math.PI / 2, 0, 0.16);
-  world.add(paid);
-
-  function update(s, time) {
-    // The line runs whatever the visitor is doing.
-    beltTexture.offset.x = -time * 0.34;
-    rollers.forEach((r) => { r.rotation.y = -time * 3; });
-    const stroke = Math.pow(Math.max(0, Math.sin(time * 1.9)), 6);
-    head.position.y = 100 - stroke * 44;
-    lamp.material.emissiveIntensity = 1.4 + Math.sin(time * 3) * 0.8;
-    crowd.forEach((b, i) => {
-      const k = ((time * 0.055 + i / crowd.length) % 1);
-      b.position.x = lerp(70, 225, k);
-      b.position.z = -6 + i * 3;
-      b.visible = s > 0.2 || k > 0.1;
-    });
-
-    // Our bracket, out of the press and along the belt, into the open box.
-    const out = ramp(s, 0, 1), along = ramp(s, 1.02, 1.42), drop = ramp(s, 1.42, 1.54);
-    product.position.set(lerp(lerp(0, 84, out), PLACE.packer, along), lerp(BELT + 0.6 + (s < 0.05 ? 7 : 0), BELT + 6, drop), 2);
-    product.rotation.y = lerp(0.5, 0, out) + Math.sin(time * 0.7) * 0.05 * (1 - along);
-    product.visible = s < 1.7;
-
-    // The box waits under the arch, folds shut, is labelled and goes to the rack.
-    const fold = ramp(s, 1.56, 1.72), seal = s > 1.72, toRack = ramp(s, 1.76, 1.9), up = ramp(s, 1.9, 2), onto = ramp(s, 1.94, 2);
-    const down = ramp(s, 3.06, 3.3), ride = ramp(s, 3.3, 3.8), inTruck = ramp(s, 3.8, 3.96);
-    open.visible = !seal;
-    sealed.visible = seal;
-    flaps.forEach((f, i) => { f.rotation.x = lerp(-2.4 - i * 0.12, 0, fold); });
-    const truckStart = PLACE.truck, roll = ramp(s, 4.04, 4.94), truckX = lerp(truckStart, PLACE.customer - 150, roll);
-    const rearX = truckX - 96;
-    const carX = lerp(HOME.x, rearX - 40, ride);
-    let x = lerp(lerp(PLACE.packer, PLACE.rack + 10, toRack), HOME.x, onto);
-    let y = lerp(lerp(BELT + 0.5, HOME.y, up), 15.6, down);
-    let z = lerp(lerp(0, HOME.z, onto), 30, down);
-    if (s > 3.3) { x = lerp(carX, rearX + 40, inTruck); y = lerp(15.6, 36, inTruck); z = lerp(30, 0, ride); }
-    const unload = ramp(s, 4.9, 5);
-    if (s > 4.86) { x = lerp(rearX - 30, DOOR.x, unload); y = lerp(30, 0.2, unload); z = lerp(0, DOOR.z, unload); }
-    carton.position.set(x, y, z);
-    carton.rotation.y = lerp(0, 0.34, unload);
-    carton.visible = !(s > 3.96 && s < 4.86);
-
-    tag.visible = s > 2.4 && s < 4;
-    tag.position.set(carton.position.x + 12, carton.position.y + 26, carton.position.z + 22.9);
-    tag.scale.setScalar(ramp(s, 2.4, 2.75));
-
-    carrier.position.set(lerp(HOME.x, rearX - 40, ride), 0, lerp(30, 0, ride));
-    carrier.position.x = s < 3.05 ? lerp(PLACE.rack - 240, HOME.x, ramp(s, 2.7, 3.05)) : carrier.position.x;
-    carrier.position.z = s < 3.05 ? 30 : carrier.position.z;
-    if (s > 3.9) carrier.position.x = lerp(rearX - 40, PLACE.rack - 240, ramp(s, 3.9, 4.4));
-
-    truck.position.set(truckX, 0, 20);
-    wheels.forEach((w) => { w.rotation.z = -(truckX - truckStart) / 18; });
-    door.position.y = 70 + (1 - ramp(s, 3.92, 4)) * 76;
-    door.scale.y = lerp(0.12, 1, ramp(s, 3.92, 4));
-
-    const lay = ramp(s, 5.3, 5.9);
-    sheet.visible = lay > 0;
-    sheet.position.set(DOOR.x + 2, lerp(120, 40.6, lay), DOOR.z + lerp(90, 0, lay));
-    sheet.rotation.z = lerp(0.6, 0.34, lay);
-    paid.material.opacity = ramp(s, 6.3, 6.5);
-    const hit = 1 + (1 - ramp(s, 6.3, 6.5)) * 0.9;
-    paid.scale.set(hit, hit, 1);
-    paid.position.set(DOOR.x + 2.5, 40.9, DOOR.z + 9);
-
-    fill.value = clamp((Math.max(product.position.x, s > 1.7 ? x : 0) - (600 - 700)) / 1400);
-    if (s > 7.2) fill.value = lerp(fill.value, 1, ramp(s, 7.2, 8));
-  }
-  return { world, update };
+function fitHeight(object, height) {
+  const box = new THREE.Box3().setFromObject(object);
+  object.scale.multiplyScalar(height / (box.max.y - box.min.y));
+  return object;
 }
+const place = (object, x, y, z, turn = 0) => { object.position.set(x, y, z); object.rotation.y = turn; return object; };
+const part = (root, ending) => { let found = null; root.traverse((o) => { if (o.name.endsWith(ending)) found = o; }); return found; };
 
 function useSteadyFrames(maxDpr) {
   const setDpr = useThree((state) => state.setDpr);
@@ -435,7 +170,7 @@ function useSteadyFrames(maxDpr) {
     if (w.time < 1) return;
     const ms = (w.time / w.frames) * 1000;
     w.time = w.frames = 0;
-    if (ms > 24 && w.dpr > 0.8) {
+    if (ms > 26 && w.dpr > 0.8) {
       w.dpr = Math.max(0.8, w.dpr - 0.2);
       w.quick = 0;
       setDpr(w.dpr);
@@ -447,39 +182,264 @@ function useSteadyFrames(maxDpr) {
   };
 }
 
-function Line({ live, mobile, maxDpr }) {
-  const { gl, scene, camera, size } = useThree();
+function Film({ live, mobile, maxDpr }) {
+  const { gl, scene, camera, size, viewport } = useThree();
   const steady = useSteadyFrames(maxDpr);
-  const line = useMemo(() => buildLine(gl, mobile), [gl, mobile]);
   const sun = useRef(null);
+  const set = useRef({});
+  const f = useRef({ s: 0, v: 0, x: 0, y: 0, turn: 0, room: 0, outside: null });
+  const look = useMemo(() => new THREE.Vector3(), []);
   const eye = useMemo(() => new THREE.CatmullRomCurve3(SHOTS.map((k) => new THREE.Vector3(...k.eye)), false, "centripetal"), []);
   const aim = useMemo(() => new THREE.CatmullRomCurve3(SHOTS.map((k) => new THREE.Vector3(...k.aim)), false, "centripetal"), []);
-  const f = useRef({ s: 0, v: 0, x: 0, y: 0, turn: 0 });
-  const look = useMemo(() => new THREE.Vector3(), []);
 
   useEffect(() => {
-    const pmrem = new THREE.PMREMGenerator(gl);
-    const room = new RoomEnvironment();
-    const map = pmrem.fromScene(room, 0.03).texture;
-    scene.environment = map;
-    scene.environmentIntensity = 0.62;
-    scene.fog = new THREE.Fog(PAGE, 620, 1500);
-    pmrem.dispose();
-    gl.toneMapping = THREE.NeutralToneMapping;
-    gl.toneMappingExposure = 1;
+    let gone = false;
+    const world = new THREE.Group();
+    scene.add(world);
+    gl.toneMapping = THREE.ACESFilmicToneMapping;
+    gl.toneMappingExposure = 1.02;
     scene.add(sun.current.target);
-    live.current.onReady?.();
-    return () => { scene.environment = null; scene.fog = null; map.dispose(); };
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const images = new THREE.TextureLoader(), hdr = new HDRLoader(), gltf = new GLTFLoader();
+    const load = (name) => gltf.loadAsync(model(name)).then((g) => prepare(g.scene));
+    const image = async (name, colour) => {
+      const t = await images.loadAsync(`${FILES}/${name}.webp`);
+      if (colour) t.colorSpace = THREE.SRGBColorSpace;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+      return t;
+    };
+    const place3 = async (name, height, radius) => {
+      const [light, photo] = await Promise.all([hdr.loadAsync(`${FILES}/${name}.hdr`), images.loadAsync(`${FILES}/${name}.webp`)]);
+      light.mapping = THREE.EquirectangularReflectionMapping;
+      const env = pmrem.fromEquirectangular(light).texture;
+      light.dispose();
+      photo.mapping = THREE.EquirectangularReflectionMapping;
+      photo.colorSpace = THREE.SRGBColorSpace;
+      const sky = new GroundedSkybox(photo, height, radius, 96);
+      sky.material.toneMapped = false;
+      sky.position.y = height - 0.01;
+      return { env, sky };
+    };
+
+    (async () => {
+      // The workshop first: this is what the opening shot needs.
+      const [hall, desk, drill, box] = await Promise.all([place3("factory", 2.4, 46), load("metal_office_desk"), load("drill_press_01"), load("cardboard_box_01")]);
+      if (gone) return;
+      world.add(hall.sky);
+      scene.environment = hall.env;
+      const s = set.current;
+      s.hall = hall;
+      world.add(place(desk, DESK.x, 0, 0));
+      world.add(place(drill, DESK.x - 0.46, DESK.top, 0.02, 0.32));
+      s.drill = { bit: part(drill, "_bit"), a: part(drill, "_gear_a"), b: part(drill, "_gear_b"), handle: part(drill, "_handle"), belt: part(drill, "_belt") };
+      s.height = { bit: s.drill.bit?.position.y ?? 0 };
+
+      const bracket = makeBracket();
+      const plate = part(drill, "_plate");
+      const top = new THREE.Box3().setFromObject(plate ?? drill);
+      world.updateMatrixWorld(true);
+      top.setFromObject(plate ?? drill);
+      place(bracket, (top.min.x + top.max.x) / 2, top.max.y + 0.001, (top.min.z + top.max.z) / 2, 0.5);
+      world.add(bracket);
+
+      // The box, with its label, in each place it stops.
+      const labelMaterial = new THREE.MeshStandardMaterial({ map: painted(shippingLabel(), gl), roughness: 0.56 });
+      const boxed = () => {
+        const g = new THREE.Group();
+        g.add(box.clone());
+        const label = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.16), labelMaterial);
+        label.position.set(0, 0.18, 0.2625);
+        g.add(label);
+        return g;
+      };
+      s.boxed = boxed;
+      s.bench = place(boxed(), DESK.x + 0.42, DESK.top, 0.06, -0.28);
+      world.add(s.bench);
+      s.ready = true;
+      live.current.onReady?.();
+
+      // The floor patch under the sets: scanned concrete that fades into the photograph.
+      const [diff, nor, rough] = await Promise.all([image("floor_diff", true), image("floor_nor"), image("floor_rough")]);
+      if (gone) return;
+      [diff, nor, rough].forEach((t) => t.repeat.set(8, 8));
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(26, 26), new THREE.MeshStandardMaterial({ map: diff, normalMap: nor, roughnessMap: rough, roughness: 1, transparent: true, alphaMap: new THREE.CanvasTexture(radialFade()), envMapIntensity: 0.8 }));
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.set(-0.6, 0.002, 0);
+      floor.receiveShadow = true;
+      world.add(floor);
+
+      const [shelves, truck, register, clipboard, chest, cart, tyre, pump, shutter, yard, desk2, fan, lamp, brickD, brickN, brickR] = await Promise.all([
+        load("steel_frame_shelves_01"), load("hand_truck"), load("CashRegister_01"), load("clipboard"), load("metal_tool_chest"), load("tool_cart"), load("old_tyre"), load("tire_pump"),
+        load("rollershutter_door"), place3("yard", 1.8, 60), load("metal_office_desk"), load("ceiling_fan"), load("hanging_industrial_lamp"), image("brick_diff", true), image("brick_nor"), image("brick_rough"),
+      ]);
+      if (gone) return;
+
+      // Shelving, stocked. Our box sits on the middle shelf, front and centre.
+      fitHeight(shelves, 2.15);
+      const shelf = new THREE.Group();
+      for (let i = -1; i <= 1; i++) shelf.add(place(shelves.clone(), RACK.x + i * 1.28, 0, RACK.z));
+      const levels = [0.2, 0.9, 1.6];
+      levels.forEach((y, row) => { for (let c = 0; c < 6; c++) { if (row === 1 && c === 2) continue; shelf.add(place(boxed(), RACK.x - 1.65 + c * 0.66 + (row % 2) * 0.04, y, RACK.z - 0.02, (row + c) % 3 === 0 ? 0.05 : -0.04)); } });
+      world.add(shelf);
+      s.ours = place(boxed(), RACK.x, levels[1], RACK.z + 0.02, 0);
+      world.add(s.ours);
+      const sticker = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.0625), new THREE.MeshStandardMaterial({ map: painted(heldSticker(), gl), roughness: 0.4, transparent: true, opacity: 0 }));
+      sticker.position.set(0.075, 0.075, 0.2632);
+      s.ours.add(sticker);
+      s.sticker = sticker;
+
+      // The hand truck takes the box out.
+      s.truck = place(truck, RACK.x + 1, 0, 1, -0.9);
+      world.add(s.truck);
+      s.loaded = boxed();
+      s.loaded.scale.setScalar(0.9);
+      s.truck.add(s.loaded);
+      s.loaded.position.set(0, 0.08, 0.12);
+      s.loaded.rotation.y = 0;
+
+      // A hanging lamp and a ceiling fan keep the room moving.
+      fitHeight(lamp, 1.3);
+      s.lamp = new THREE.Group();
+      s.lamp.position.set(-0.2, 3.4, -0.1);
+      s.lamp.add(lamp);
+      world.add(s.lamp);
+      s.fan = part(fan, "_blades");
+      world.add(place(fan, RACK.x - 1.2, 3.1, 1.4));
+
+      // The till, for the end of the day.
+      world.add(place(desk2, TILL.x, 0, 0));
+      s.register = place(register, TILL.x - 0.1, DESK.top, 0.02, 0.24);
+      s.drawer = part(register, "_drawer");
+      s.drawerZ = s.drawer?.position.z ?? 0;
+      world.add(s.register);
+      world.add(place(chest, TILL.x + 1.5, 0, -0.1, -0.4));
+
+      // The Motor Shop: a brick front, a shutter, a sign, and the tools of the trade outside.
+      const street = new THREE.Group();
+      [brickD, brickN, brickR].forEach((t) => t.repeat.set(5, 2.2));
+      const brick = new THREE.MeshStandardMaterial({ map: brickD, normalMap: brickN, roughnessMap: brickR, roughness: 1 });
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(11, 4.2, 0.4), brick);
+      wall.position.set(STREET.x, 2.1, -1.8);
+      wall.castShadow = wall.receiveShadow = true;
+      street.add(wall);
+      const door = place(shutter, STREET.x - 0.2, 0, -1.56);
+      const tag = part(shutter, "_graffiti");
+      if (tag) tag.visible = false;
+      street.add(door);
+      const sign = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.72, 0.06), [0, 0, 0, 0, 0, 0].map((_, i) => (i === 4 ? new THREE.MeshStandardMaterial({ map: painted(shopSign(), gl), roughness: 0.46, metalness: 0.1 }) : new THREE.MeshStandardMaterial({ color: "#23403d", roughness: 0.5 }))));
+      sign.position.set(STREET.x - 0.2, 3.02, -1.56);
+      sign.castShadow = true;
+      street.add(sign);
+      street.add(place(cart, STREET.x + 2.5, 0, -1.1, -0.2));
+      street.add(place(pump, STREET.x - 2.2, 0, -1.3, 0.5));
+      [0, 0.17, 0.34].forEach((y, i) => { const t = tyre.clone(); t.rotation.x = Math.PI / 2; t.position.set(STREET.x - 2.9, 0.085 + y, -1.15); t.rotation.z = i; street.add(t); });
+      const lean = tyre.clone();
+      lean.position.set(STREET.x + 1.72, 0.3, -1.44);
+      lean.rotation.x = -0.1;
+      street.add(lean);
+      s.door = place(boxed(), STREET.x + 0.55, 0.002, -0.5, -0.32);
+      street.add(s.door);
+      const atDoor = truck.clone();
+      place(atDoor, STREET.x + 1.12, 0, -0.72, -0.7);
+      street.add(atDoor);
+      place(clipboard, 0, 0.345, 0.04, 0.2);
+      fitHeight(clipboard, 0.03);
+      s.door.add(clipboard);
+      const page = new THREE.Mesh(new THREE.PlaneGeometry(0.205, 0.292), new THREE.MeshStandardMaterial({ map: painted(invoicePage(), gl), roughness: 0.78 }));
+      page.rotation.set(-Math.PI / 2, 0, 0.2);
+      page.position.set(0, 0.376, 0.04);
+      s.door.add(page);
+      s.clip = [clipboard, page];
+      const stamp = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.054), new THREE.MeshStandardMaterial({ map: painted(paidStamp(), gl), transparent: true, opacity: 0, roughness: 0.6 }));
+      stamp.rotation.set(-Math.PI / 2, 0, 0.32);
+      stamp.position.set(0.01, 0.3775, 0.08);
+      s.door.add(stamp);
+      s.stamp = stamp;
+      world.add(street);
+      const catcher = new THREE.Mesh(new THREE.PlaneGeometry(26, 26), new THREE.ShadowMaterial({ opacity: 0.42 }));
+      catcher.rotation.x = -Math.PI / 2;
+      catcher.position.set(STREET.x, 0.003, 2);
+      catcher.receiveShadow = true;
+      world.add(catcher);
+      s.yard = yard;
+      yard.sky.visible = false;
+      world.add(yard.sky);
+    })().catch(() => live.current.onFail?.());
+
+    return () => { gone = true; scene.remove(world); scene.environment = null; pmrem.dispose(); };
   }, [gl, live, scene]);
 
+  // Contact shadows do most of the work of making things feel placed. Phones go without.
+  const composer = useMemo(() => {
+    if (mobile) return null;
+    const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
+    const c = new EffectComposer(gl, target);
+    c.addPass(new RenderPass(scene, camera));
+    const ao = new GTAOPass(scene, camera, 4, 4);
+    ao.updateGtaoMaterial({ radius: 0.42, distanceExponent: 1.4, thickness: 1, scale: 1.3, samples: 12, distanceFallOff: 1 });
+    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, rings: 2, samples: 12 });
+    c.addPass(ao);
+    c.addPass(new OutputPass());
+    return c;
+  }, [camera, gl, mobile, scene]);
+
+  useEffect(() => {
+    if (!composer) return;
+    composer.setPixelRatio(viewport.dpr);
+    composer.setSize(size.width, size.height);
+  }, [composer, size, viewport.dpr]);
+
   useFrame(({ clock }, delta) => {
-    const l = live.current, m = f.current, dt = Math.min(delta, 1 / 24);
+    const l = live.current, m = f.current, s0 = set.current, dt = Math.min(delta, 1 / 24), t = clock.elapsedTime;
     steady(delta);
-    const stiffness = 34;
+    if (!s0.ready) return;
+    const stiffness = 30;
     m.v += ((l.s - m.s) * stiffness - m.v * 2 * Math.sqrt(stiffness)) * dt;
     m.s += m.v * dt;
     const s = clamp(m.s, 0, 8);
-    line.update(s, clock.elapsedTime);
+
+    // Inside or out, the photograph, its light and the sun swap at the cuts.
+    const outside = s > 4.5 && s < 7.5;
+    if (outside !== m.outside && (!outside || s0.yard)) {
+      m.outside = outside;
+      s0.hall.sky.visible = !outside;
+      if (s0.yard) s0.yard.sky.visible = outside;
+      scene.environment = outside ? s0.yard.env : s0.hall.env;
+      scene.environmentIntensity = outside ? 0.95 : 1.1;
+      const light = sun.current;
+      light.intensity = outside ? 1.5 : 0.9;
+      light.color.set(outside ? "#fff4e6" : "#fff1dc");
+    }
+
+    // The drill runs all the time; the bit comes down and lifts.
+    const d = s0.drill;
+    if (d) {
+      if (d.bit) { d.bit.rotation.y = t * 26; d.bit.position.y = s0.height.bit - Math.pow(Math.max(0, Math.sin(t * 0.9)), 8) * 0.03; }
+      if (d.a) d.a.rotation.y = t * 8;
+      if (d.b) d.b.rotation.y = t * 11;
+      if (d.handle) d.handle.rotation.z = Math.pow(Math.max(0, Math.sin(t * 0.9)), 8) * 0.34;
+    }
+    if (s0.fan) s0.fan.rotation.y = t * 2.2;
+    if (s0.lamp) s0.lamp.rotation.z = Math.sin(t * 0.8) * 0.018;
+    if (s0.bench) s0.bench.visible = s < 1.5;
+    if (s0.ours) s0.ours.visible = s < 3.5;
+    if (s0.sticker) { s0.sticker.material.opacity = ramp(s, 2.3, 2.55); s0.sticker.scale.setScalar(1 + (1 - ramp(s, 2.3, 2.55)) * 0.5); }
+    if (s0.truck) {
+      const go = ramp(s, 3.5, 4.4);
+      s0.truck.visible = s > 3.5 && s < 4.5;
+      place(s0.truck, RACK.x + lerp(0.7, 2, go), 0, lerp(0.6, 1.5, go), -0.9);
+      s0.truck.rotation.x = -0.34 * ramp(s, 3.5, 3.7);
+    }
+    if (s0.clip) {
+      const on = ramp(s, 5.15, 5.5);
+      s0.clip.forEach((o) => { o.visible = on > 0.01; });
+      s0.clip[1].material.transparent = true;
+      s0.clip[1].material.opacity = on;
+      s0.stamp.material.opacity = ramp(s, 6.2, 6.34);
+      s0.stamp.scale.setScalar(1 + (1 - ramp(s, 6.2, 6.34)) * 0.6);
+    }
+    if (s0.drawer) s0.drawer.position.z = s0.drawerZ + ramp(s, 7.6, 7.95) * 0.17;
 
     const u = s / (SHOTS.length - 1);
     eye.getPoint(u, camera.position);
@@ -488,36 +448,37 @@ function Line({ live, mobile, maxDpr }) {
     m.x += (l.x - m.x) * k;
     m.y += (l.y - m.y) * k;
     m.turn += (l.turn - m.turn) * (1 - Math.exp(-dt * 7));
-
-    // Narrow screens stand further back so the subject still fits.
     const aspect = size.width / size.height;
-    const away = aspect < 1.2 ? 1 + (1.2 - aspect) * 0.95 : 1;
-    camera.position.sub(look).multiplyScalar(away).applyAxisAngle(THREE.Object3D.DEFAULT_UP, m.turn * 2.4 + m.x * 0.05).add(look);
-    camera.position.y += m.y * 12;
+    const away = aspect < 1.2 ? 1 + (1.2 - aspect) * 1.1 : 1;
+    camera.position.sub(look).multiplyScalar(away).applyAxisAngle(THREE.Object3D.DEFAULT_UP, m.turn * 1.6 + m.x * 0.035).add(look);
+    camera.position.y += m.y * 0.05 + Math.sin(t * 0.5) * 0.004;
     camera.lookAt(look);
+    const room = s < 0.5 || aspect < 1.2 ? 0 : 0.085;
+    if (Math.abs(room - m.room) > 0.0004) {
+      m.room += (room - m.room) * (1 - Math.exp(-dt * 5));
+      camera.setViewOffset(size.width, size.height, size.width * m.room, 0, size.width, size.height);
+    }
 
-    // The sun's shadow box follows the camera along the line.
-    const light = sun.current, wide = s > 7 ? 900 : 380, c = light.shadow.camera;
-    if (c.right !== wide) { c.left = -wide; c.right = wide; c.top = wide; c.bottom = -wide; c.updateProjectionMatrix(); }
-    light.position.set(look.x - 300, 620, look.z + 340);
-    light.target.position.set(look.x, 0, look.z);
-  }, -1);
+    const light = sun.current;
+    light.position.set(look.x - 2.4, 6.4, look.z + 3.4);
+    light.target.position.copy(look);
 
-  return (
-    <>
-      <primitive object={line.world} />
-      <hemisphereLight args={["#fffaf0", "#e7dcc6", 1.15]} />
-      <directionalLight ref={sun} color="#fff2dc" intensity={2.5} castShadow shadow-mapSize={mobile ? [1536, 1536] : [3072, 3072]} shadow-camera-near={80} shadow-camera-far={1500} shadow-radius={5} shadow-bias={-0.0003} shadow-normalBias={0.5} />
-    </>
-  );
+    let dip = 0;
+    CUTS.forEach((c) => { dip = Math.max(dip, 1 - clamp(Math.abs(s - c) / 0.17)); });
+    l.pin.current?.style.setProperty("--dip", dip.toFixed(3));
+
+    if (composer) composer.render(dt); else gl.render(scene, camera);
+  }, 1);
+
+  return <directionalLight ref={sun} intensity={0.9} color="#fff1dc" castShadow shadow-mapSize={mobile ? [1024, 1024] : [2048, 2048]} shadow-camera-left={-6} shadow-camera-right={6} shadow-camera-top={6} shadow-camera-bottom={-6} shadow-camera-near={0.5} shadow-camera-far={18} shadow-radius={6} shadow-bias={-0.0004} shadow-normalBias={0.02} />;
 }
 
 export default function Scene({ live, mobile, active }) {
-  const maxDpr = mobile ? 1.4 : 1.75;
+  const maxDpr = mobile ? 1.4 : 1.6;
   return (
-    <Canvas frameloop={active ? "always" : "never"} dpr={maxDpr} shadows="percentage" gl={{ antialias: true, powerPreference: "high-performance" }} camera={{ fov: mobile ? 34 : 28, near: 8, far: 3200, position: [-250, 118, 300] }}>
-      <color attach="background" args={[PAGE]} />
-      <Line live={live} mobile={mobile} maxDpr={maxDpr} />
+    <Canvas frameloop={active ? "always" : "never"} dpr={maxDpr} shadows="percentage" gl={{ antialias: !mobile ? false : true, powerPreference: "high-performance" }} camera={{ fov: mobile ? 36 : 30, near: 0.05, far: 300, position: [-0.3, 1.5, 3.5] }}>
+      <color attach="background" args={["#d9d2c3"]} />
+      <Film live={live} mobile={mobile} maxDpr={maxDpr} />
     </Canvas>
   );
 }
