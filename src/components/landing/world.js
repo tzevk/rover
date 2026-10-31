@@ -12,7 +12,7 @@ export const TILL = { x: -5 };
 // The camera at each stop: 0 the desk, then one for each step, ending back at the desk.
 export const SHOTS = [
   { eye: [-4.62, 1.24, 1.62], aim: [-5.2, 1.0, 0.12] },     // the tablet on the desk
-  { eye: [-0.14, 1.36, 1.02], aim: [-0.22, 1.0, 0.1] },     // production: the bracket under the drill
+  { eye: [-0.14, 1.36, 1.02], aim: [-0.22, 1.0, 0.1], peek: [-0.72, 1.02, 0.02] },     // production: the bracket under the drill
   { eye: [3.5, 1.55, 3.3], aim: [3.2, 1.05, -0.5] },        // stock: on the shelves
   { eye: [3.42, 1.32, 1.5], aim: [3.46, 1.08, -0.4] },     // order: held
   { eye: [2.5, 1.05, 3.5], aim: [3.5, 0.82, 0.9] },         // dispatch: on the hand truck

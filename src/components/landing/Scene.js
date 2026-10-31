@@ -624,7 +624,10 @@ function Film({ live, mobile, maxDpr }) {
       const stop = s < 0.5 ? (m.pick ?? 0) + 1 : here.from + 1;
       const shot = SHOTS[stop];
       shotEye(shot, destEye);
-      dir.copy(temp.set(...shot.aim)).sub(destEye).normalize();
+      // Seen from a distance the window looks at the most telling thing in that place. Up close it
+      // swings to the exact view the camera will come out into, so the join can't be seen.
+      temp.set(...(shot.peek ?? shot.aim)).lerp(temp2.set(...shot.aim), going && u < 0.5 ? ramp(u, 0.12, 0.44) : 0);
+      dir.copy(temp).sub(destEye).normalize();
       destEye.addScaledVector(dir, -0.9);
       src.lookAt(normal, zero, THREE.Object3D.DEFAULT_UP).setPosition(pos);
       dst.lookAt(zero, dir, THREE.Object3D.DEFAULT_UP).setPosition(destEye);
