@@ -367,6 +367,7 @@ function Film({ live, mobile, maxDpr }) {
       street.add(s.door);
       const atDoor = truck.clone();
       place(atDoor, STREET.x + 0.42, 0, -0.62, 0.5);
+      atDoor.children.at(-1).visible = false;   // the box has been lifted off it
       street.add(atDoor);
       place(clipboard, s.front.x, s.front.top + 0.002, 0.02, 0.2);
       fitHeight(clipboard, 0.03);
