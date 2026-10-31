@@ -5,7 +5,6 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
-import { GroundedSkybox } from "three/addons/objects/GroundedSkybox.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
@@ -148,6 +147,25 @@ function makeBracket() {
   return g;
 }
 
+// A panorama wrapped round the scene with its lower half pressed flat, so the photographed floor is a
+// real floor the camera can move over. Same idea as three.js's GroundedSkybox, keeping the photo's
+// full resolution.
+function groundedPhoto(photo, height, radius) {
+  const geometry = new THREE.SphereGeometry(radius, 160, 120);
+  const p = geometry.attributes.position, v = new THREE.Vector3(), low = (-height * 3) / 2;
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    if (v.y < 0) v.multiplyScalar(v.y < low ? -height / v.y : 1 - (v.y * v.y) / (3 * low * low));
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  photo.wrapS = THREE.RepeatWrapping;
+  photo.repeat.x = -1;
+  const sky = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: photo, side: THREE.BackSide, depthWrite: false, toneMapped: false }));
+  sky.renderOrder = -2;
+  sky.frustumCulled = false;
+  return sky;
+}
+
 function prepare(object) {
   object.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
   return object;
@@ -214,10 +232,9 @@ function Film({ live, mobile, maxDpr }) {
       light.mapping = THREE.EquirectangularReflectionMapping;
       const env = pmrem.fromEquirectangular(light).texture;
       light.dispose();
-      photo.mapping = THREE.EquirectangularReflectionMapping;
       photo.colorSpace = THREE.SRGBColorSpace;
-      const sky = new GroundedSkybox(photo, height, radius, 96);
-      sky.material.toneMapped = false;
+      photo.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+      const sky = groundedPhoto(photo, height, radius);
       sky.position.y = height - 0.01;
       return { env, sky };
     };
@@ -245,11 +262,14 @@ function Film({ live, mobile, maxDpr }) {
 
       // The box, with its label, in each place it stops.
       const labelMaterial = new THREE.MeshStandardMaterial({ map: painted(shippingLabel(), gl), roughness: 0.56 });
+      const size = new THREE.Box3().setFromObject(box);
+      s.front = { z: size.max.z + 0.0015, x: (size.min.x + size.max.x) / 2, y: (size.min.y + size.max.y) / 2, top: size.max.y, width: size.max.x - size.min.x };
       const boxed = () => {
         const g = new THREE.Group();
         g.add(box.clone());
-        const label = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.16), labelMaterial);
-        label.position.set(0, 0.18, 0.2625);
+        const w = Math.min(0.27, s.front.width * 0.62);
+        const label = new THREE.Mesh(new THREE.PlaneGeometry(w, w * 0.667), labelMaterial);
+        label.position.set(s.front.x, s.front.y, s.front.z);
         g.add(label);
         return g;
       };
@@ -285,7 +305,7 @@ function Film({ live, mobile, maxDpr }) {
       s.ours = place(boxed(), RACK.x, levels[1], RACK.z + 0.02, 0);
       world.add(s.ours);
       const sticker = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.0625), new THREE.MeshStandardMaterial({ map: painted(heldSticker(), gl), roughness: 0.4, transparent: true, opacity: 0 }));
-      sticker.position.set(0.075, 0.075, 0.2632);
+      sticker.position.set(s.front.x + 0.1, s.front.y + 0.11, s.front.z + 0.001);
       s.ours.add(sticker);
       s.sticker = sticker;
 
@@ -338,22 +358,22 @@ function Film({ live, mobile, maxDpr }) {
       lean.position.set(STREET.x + 1.72, 0.3, -1.44);
       lean.rotation.x = -0.1;
       street.add(lean);
-      s.door = place(boxed(), STREET.x + 0.55, 0.002, -0.5, -0.32);
+      s.door = place(boxed(), STREET.x - 0.75, 0.002, -0.35, 0.28);
       street.add(s.door);
       const atDoor = truck.clone();
-      place(atDoor, STREET.x + 1.12, 0, -0.72, -0.7);
+      place(atDoor, STREET.x - 1.45, 0, -0.6, 0.5);
       street.add(atDoor);
-      place(clipboard, 0, 0.345, 0.04, 0.2);
+      place(clipboard, s.front.x, s.front.top + 0.002, 0.02, 0.2);
       fitHeight(clipboard, 0.03);
       s.door.add(clipboard);
       const page = new THREE.Mesh(new THREE.PlaneGeometry(0.205, 0.292), new THREE.MeshStandardMaterial({ map: painted(invoicePage(), gl), roughness: 0.78 }));
       page.rotation.set(-Math.PI / 2, 0, 0.2);
-      page.position.set(0, 0.376, 0.04);
+      page.position.set(s.front.x, s.front.top + 0.032, 0.02);
       s.door.add(page);
       s.clip = [clipboard, page];
       const stamp = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.054), new THREE.MeshStandardMaterial({ map: painted(paidStamp(), gl), transparent: true, opacity: 0, roughness: 0.6 }));
       stamp.rotation.set(-Math.PI / 2, 0, 0.32);
-      stamp.position.set(0.01, 0.3775, 0.08);
+      stamp.position.set(s.front.x + 0.01, s.front.top + 0.0335, 0.06);
       s.door.add(stamp);
       s.stamp = stamp;
       world.add(street);

@@ -17,10 +17,10 @@ export const SHOTS = [
   { eye: [3.5, 1.55, 3.3], aim: [3.2, 1.05, -0.5] },    // stock: on the shelves
   { eye: [3.2, 1.28, 1], aim: [3.2, 1.05, -0.55] },     // order: held
   { eye: [2.5, 1.05, 3.2], aim: [3.7, 0.72, 0.8] },     // dispatch: on the hand truck
-  { eye: [29.3, 1.45, 4.8], aim: [30, 1.12, -1] },      // delivery: at the customer's door
-  { eye: [30.25, 1.28, 0.75], aim: [30.55, 0.34, -0.5] },   // invoice
-  { eye: [30.42, 1.12, 0.46], aim: [30.55, 0.36, -0.5] },   // payment
-  { eye: [-4.5, 1.32, 1.7], aim: [-5, 0.96, 0] },       // daily cash: the till
+  { eye: [29, 1.7, 6.6], aim: [30, 1.62, -1] },         // delivery: at the customer's door
+  { eye: [29.45, 1.25, 1], aim: [29.3, 0.36, -0.36] },  // invoice
+  { eye: [29.42, 1.1, 0.72], aim: [29.28, 0.38, -0.36] },   // payment
+  { eye: [-4.15, 1.42, 2.3], aim: [-4.85, 1.02, 0] },   // daily cash: the till
 ];
 
 // Scroll positions where the film cuts rather than moves.
