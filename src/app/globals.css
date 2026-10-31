@@ -1190,3 +1190,23 @@ a.tel { color: inherit; text-decoration: underline; text-underline-offset: 2px; 
 /* Long weighbridge button text wraps inside its column on the narrowest phones */
 .scale-read { max-width: 100%; white-space: normal; }
 .fields-pair > .field { min-width: 0; }
+
+/* Where an order has got to */
+.order-progress { list-style: none; display: grid; grid-template-columns: repeat(var(--steps), minmax(0, 1fr)); margin: 0 0 20px; padding: 16px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.order-progress li { position: relative; display: grid; gap: 2px; justify-items: start; min-width: 0; padding-right: 10px; }
+.order-progress li::after { content: ""; position: absolute; left: 24px; right: 0; top: 11px; height: 2px; background: var(--line); }
+.order-progress li:last-child::after { display: none; }
+.order-progress li[data-state="done"]::after { background: var(--ok); }
+.order-dot { display: grid; place-items: center; width: 24px; height: 24px; margin-bottom: 4px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); color: #fff; }
+.order-progress [data-state="done"] .order-dot { background: var(--ok); border-color: var(--ok); }
+.order-progress [data-state="now"] .order-dot { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.order-progress strong { font-size: 13.5px; }
+.order-progress [data-state="next"] strong { color: var(--muted); font-weight: 500; }
+.order-progress small { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.order-progress [data-state="now"] small { color: var(--danger); }
+@media (max-width: 640px) {
+  .order-progress { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px 16px; }
+  .order-progress li { grid-template-columns: 24px minmax(0, 1fr); column-gap: 10px; padding: 0; }
+  .order-dot { grid-row: span 2; margin: 0; }
+  .order-progress li::after { left: 11px; right: auto; top: 26px; bottom: -14px; width: 2px; height: auto; }
+}

@@ -918,6 +918,14 @@ const mr = {
   "flash.userEnabled": "लॉगिन सुरू केले.",
   "flash.userDisabled": "लॉगिन बंद केले.",
   "flash.signedOut": "तुम्ही साइन आउट झाला आहात.",
+  "track.label": "मागणीची प्रगती",
+  "track.booked": "नोंदवली",
+  "track.gate": "गेटवर",
+  "track.weighed": "वजन झाले",
+  "track.dispatched": "रवाना",
+  "track.invoiced": "बीजक दिले",
+  "track.paid": "भरले",
+  "track.due": "{amount} बाकी",
 };
 
 export default mr;

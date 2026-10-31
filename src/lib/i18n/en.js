@@ -914,6 +914,14 @@ const en = {
   "flash.userEnabled": "Login enabled.",
   "flash.userDisabled": "Login disabled.",
   "flash.signedOut": "You've been signed out.",
+  "track.label": "Order progress",
+  "track.booked": "Booked",
+  "track.gate": "At the gate",
+  "track.weighed": "Weighed",
+  "track.dispatched": "Dispatched",
+  "track.invoiced": "Invoiced",
+  "track.paid": "Paid",
+  "track.due": "{amount} due",
 };
 
 export default en;

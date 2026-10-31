@@ -482,6 +482,7 @@ async function main() {
     await scalePage.locator('button:has-text("Read weighbridge")').nth(1).click();
     await scalePage.waitForFunction(() => document.querySelector('input[name="gross_kg"]').value === "18000", null, { timeout: 5000 }).catch(() => {});
     check(await scalePage.inputValue('input[name="gross_kg"]') === "18000", "the weighbridge is read directly, and only once the weight is steady");
+    await scalePage.waitForFunction(() => document.querySelector('input[name="delivered_qty"]').value === "10", null, { timeout: 3000 }).catch(() => {});
     check(await scalePage.inputValue('input[name="delivered_qty"]') === "10", "…and the reading flows through to the delivered quantity");
     await scalePage.click("text=Complete delivery");
     await scalePage.waitForURL(/deliveries\?done=/);
@@ -638,6 +639,15 @@ async function main() {
     check(Number(inv.taxable_value) === 10000 && Number(inv.cgst) === 250 && Number(inv.sgst) === 250 && Number(inv.igst) === 0 && Number(inv.total) === 10500, "a sale within the State splits into CGST and SGST");
     const [[billed]] = await appConn.query("SELECT total_amount, tax_amount, balance_amount FROM orders WHERE id = ?", [firstBill]);
     check(Number(billed.total_amount) === 10500 && Number(billed.tax_amount) === 500 && Number(billed.balance_amount) === 10000, "the customer owes the amount including GST, less what they paid");
+
+    await admin.goto(`${BASE}/deliveries/${firstBill}`);
+    const track = admin.locator(".order-progress li");
+    check(await track.count() === 6 && await admin.locator('.order-progress li[data-state="done"]').count() === 5, "an order shows how far it has got, booking to payment");
+    check((await track.last().innerText()).includes("₹10,000 due"), "…and what's still owed on it");
+    const justBooked = await orderFor(local, 1, 1000);
+    await admin.goto(`${BASE}/deliveries/${justBooked}`);
+    check(await admin.locator('.order-progress li[data-state="done"]').count() === 1 && await admin.locator('.order-progress li[aria-current="step"]').innerText().then((x) => x.includes("At the gate")), "a new order is waiting at its first step");
+    await appConn.query("UPDATE orders SET status = 'cancelled' WHERE id = ?", [justBooked]);
 
     await admin.goto(`${BASE}/invoices/${inv.id}`);
     const printed = await admin.locator(".invoice").innerText();
@@ -1324,6 +1334,56 @@ async function main() {
     await ownerPage.goto(`${BASE}/customers`);
     check(await seen(ownerPage, 'a[href^="tel:"]'), "customers' phone numbers can be tapped to call");
     await ownerPhone.close();
+
+    console.log("▸ The film");
+    const filmBrowser = await chromium.launch({ channel: "chrome", args: ["--use-angle=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist", "--enable-unsafe-swiftshader"] });
+    const filmCtx = await filmBrowser.newContext({ viewport: { width: 1180, height: 720 }, extraHTTPHeaders: { "x-forwarded-for": "198.51.100.9" } });
+    const film = await newPage(filmCtx);
+    await film.goto(`${BASE}/welcome`);
+    check(await film.waitForSelector(".exp[data-live] canvas", { timeout: 30000 }).then(() => true, () => false), "with 3D available, the film runs");
+    const nowShowing = () => film.locator(".stop[data-state='now'] h3").textContent(); // the card may still be fading in
+    await film.evaluate(() => { const j = document.querySelector("[data-journey]"); window.scrollTo(0, j.offsetTop + 40); });
+    await film.waitForFunction(() => document.querySelector(".stop[data-state='now']"), null, { timeout: 8000 });
+    check(await nowShowing() === "Production", "the journey starts at production");
+    check(await film.locator("[data-rail-count]").textContent() === "1 / 9", "the progress rail starts at the first of nine stops");
+    await film.waitForTimeout(1500); // let the scroll above finish, as a person's would
+    await film.click('[data-step="5"]');
+    await film.waitForFunction(() => document.querySelector(".stop[data-state='now'] h3")?.textContent === "Weighbridge", null, { timeout: 15000 }).catch(() => {});
+    const jumpedTo = await nowShowing();
+    check(jumpedTo === "Weighbridge", `the rail jumps straight to a stop (${jumpedTo})`);
+    check(await film.locator(".rail button[data-state='past']").count() === 5, "stops already passed are marked on the rail");
+    // Smooth scrolling can still be finishing the jump at a frame or two a second, so keep asking.
+    const railDone = () => Number(document.querySelector(".rail").style.getPropertyValue("--done"));
+    await film.waitForFunction(() => {
+      const j = document.querySelector("[data-journey]");
+      window.scrollTo(0, j.offsetTop + j.offsetHeight - innerHeight);
+      return Number(document.querySelector(".rail").style.getPropertyValue("--done")) >= 0.99;
+    }, null, { timeout: 25000, polling: 700 }).catch(() => {});
+    const filled = await film.evaluate(railDone);
+    check(await nowShowing() === "Financial Reconciliation" && filled >= 0.99, `the rail fills end to end by the last stop (${filled})`);
+    await film.evaluate(() => window.scrollTo(0, document.querySelector("[data-fold]").offsetTop));
+    check(await film.locator(".register li").count() === 9 && await seen(film, ".register h2"), "the journey ends on the finished register");
+    check(await film.locator(".register small").innerText() === "Sample data", "the figures in it are labelled as sample data");
+    await filmBrowser.close();
+
+    const stillCtx = await browser.newContext({ reducedMotion: "reduce", viewport: { width: 1180, height: 720 }, extraHTTPHeaders: { "x-forwarded-for": "198.51.100.10" } });
+    const still = await newPage(stillCtx);
+    await still.goto(`${BASE}/welcome`);
+    await still.waitForSelector(".stop");
+    check(await still.locator("canvas").count() === 0 && !(await still.locator(".exp[data-live]").count()), "with reduced motion on, nothing animates");
+    check(await still.locator(".stop:visible").count() === 9 && await still.locator(".record:visible").count() === 9, "…and every stop reads straight down the page");
+    await stillCtx.close();
+    const savingCtx = await browser.newContext({ viewport: { width: 390, height: 800 }, extraHTTPHeaders: { "x-forwarded-for": "198.51.100.11" } });
+    await savingCtx.addInitScript(() => Object.defineProperty(navigator, "connection", { value: { saveData: true } }));
+    const saving = await newPage(savingCtx);
+    const heavy3d = [];
+    saving.on("response", (r) => { if (/three|Scene/i.test(r.url())) heavy3d.push(r.url()); });
+    await saving.goto(`${BASE}/welcome`);
+    await saving.waitForTimeout(1200);
+    check(await saving.locator("canvas").count() === 0 && await saving.evaluate(() => getComputedStyle(document.querySelector(".stage")).backgroundImage.includes("quarry.webp")), "on a data-saving connection the still picture is shown instead");
+    await savingCtx.close();
+    const poster = await fetch(`${BASE}/quarry.webp`);
+    check(poster.ok && (await poster.arrayBuffer()).byteLength < 120 * 1024, "the still picture is small");
 
     console.log("▸ Performance & cache");
     // An account still on the old bcrypt hash signs in fine and is upgraded to scrypt.

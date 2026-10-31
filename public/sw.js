@@ -58,7 +58,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   // Any page asked for without a connection opens the gate screen instead of a browser error.
+  // One failed request can just be a blip, so it's tried again before anyone is moved off their page.
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(async () => (await caches.match(GATE)) ?? Response.error()));
+    const again = () => new Promise((resolve) => { setTimeout(resolve, 400); }).then(() => fetch(request));
+    event.respondWith(fetch(request).catch(again).catch(async () => (await caches.match(GATE)) ?? Response.error()));
   }
 });

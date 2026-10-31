@@ -54,6 +54,8 @@ Always run the production build for real use (`npm run build && npm start`): `np
 
 `/` shows the marketing site to visitors and the dashboard to signed-in people; `/mr` is the Marathi version, plus five capability pages. Copy lives in `src/components/landing/content.js` and `seo-pages.js`. Only list a feature as available once it exists. Demo requests appear at `/enquiries` for company 1. In production set `SITE_URL` (the real address, used for canonical links and the sitemap) and `CONTACT_PHONE` (with country code) and/or `CONTACT_EMAIL` for the contact section.
 
+The opening film is `src/components/landing/Scene.js`, with its ground, routes and camera shots in `world.js`. A ruled page rises into a quarry, one amber thread follows a load through nine stops with a progress rail (`Experience.js`), then the quarry folds flat into the finished register. There are no model or texture files: everything is generated in the browser, and light is baked once so phones get the same shadows. Reduced motion, slow or data-saving connections, low-memory phones and browsers without WebGL2 skip it: they get `public/quarry.webp` and the stops as a plain list. If the look changes, retake that picture from the opening shot.
+
 ## Companies and billing
 
 Each company's data is separated by `company_id` on every table; every query filters on the signed-in user's company. `company_id` has no default, so a missed insert fails rather than landing in the wrong company. Company 1 is the original business and never expires. Public sign-up is off; set `SIGNUP_ENABLED=1` to open `/signup` (14-day trial). Usernames are unique across all companies.

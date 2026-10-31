@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Ban, ClipboardList, FileText, PackageCheck, RotateCcw, Truck, Printer } from "lucide-react";
 import ConfirmButton from "@/components/ConfirmButton";
+import OrderProgress from "@/components/OrderProgress";
 import Phone from "@/components/Phone";
 import { PageHead, Section } from "@/components/ui";
 import { cancelOrder, reopenOrder } from "@/app/actions/orders";
@@ -44,6 +45,8 @@ export default async function DeliverPage({ params }) {
         subtitle={order.status === "pending" ? t("deliver.pendingSubtitle") : t("deliver.bookedAt", { when: fmtDateTime(order.booked_at) })}>
         <span className={`badge badge-${order.status}`}>{t(`status.${order.status}`)}</span>
       </PageHead>
+
+      {order.status !== "cancelled" && <OrderProgress order={order} invoice={invoice} usesGst={Boolean(gst)} t={t} />}
 
       <div className="grid-2" style={{ alignItems: "start" }}>
         <Section icon={order.status === "pending" ? Truck : PackageCheck} title={t(order.status === "pending" ? "deliver.dispatchPayment" : "deliver.deliveryDetails")}>

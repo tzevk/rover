@@ -96,16 +96,48 @@ export default function Landing({ lang }) {
             )}
 
             {c.flow && (
-              <section id="platform" data-flow className="flow">
-                <div className="flow-pin">
-                  <h2>{c.flow.title}</h2>
-                  <ol>
-                    {c.flow.steps.map(([s, st], i) => (
-                      <li key={s} data-step={i}><span>{s}</span><Tag c={c} s={st} /></li>
-                    ))}
-                  </ol>
-                </div>
-              </section>
+              <>
+                <section id="platform" data-journey className="reel" style={{ "--stops": c.flow.stops.length }}>
+                  <div className="reel-pin">
+                    <div className="reel-head">
+                      <p className="mono">{c.flow.kicker}</p>
+                      <h2>{c.flow.title}</h2>
+                    </div>
+                    <div className="reel-stops">
+                      {c.flow.stops.map((s, i) => (
+                        <article key={s.name} data-stop={i} className="stop">
+                          <p className="mono"><b>{String(i + 1).padStart(2, "0")}</b><Tag c={c} s={s.status} /></p>
+                          <h3>{s.name}</h3>
+                          <p className="stop-text">{s.text}</p>
+                          <div className="record" data-record>
+                            <strong>{s.record.head}</strong>
+                            <dl>{s.record.rows.map(([a, b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>
+                            <small>{c.sample}</small>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                    <nav className="rail" aria-label={c.flow.progress}>
+                      <div className="rail-now"><span data-rail-count>1 / {c.flow.stops.length}</span> <span data-rail-name>{c.flow.stops[0].name}</span></div>
+                      <div className="rail-track"><i /></div>
+                      <ol>
+                        {c.flow.stops.map((s, i) => <li key={s.name}><button type="button" data-step={i}><span>{s.name}</span></button></li>)}
+                      </ol>
+                    </nav>
+                    <svg className="leader" aria-hidden="true"><line /><circle r="4.5" /></svg>
+                  </div>
+                </section>
+                <section data-fold className="register">
+                  <div className="register-sheet">
+                    <h2>{c.flow.done}</h2>
+                    <p className="lead">{c.flow.doneText}</p>
+                    <ol>
+                      {c.flow.stops.map((s, i) => <li key={s.name}><b>{String(i + 1).padStart(2, "0")}</b><span>{s.entry[0]}</span><em>{s.entry[1]}</em></li>)}
+                    </ol>
+                    <small>{c.sample}</small>
+                  </div>
+                </section>
+              </>
             )}
           </div>
 
@@ -129,18 +161,6 @@ export default function Landing({ lang }) {
                 ))}
               </div>
             </section>
-
-            {c.journey && (
-              <section className="block">
-                <Rise inView><h2>{c.journey.title}</h2></Rise>
-                <ol className="journey">
-                  {c.journey.steps.map(([s, st], i) => (
-                    <Rise inView delay={i * 0.04} key={s}><li className={`j-${st}`}><b>{i + 1}</b><span>{s}</span><Tag c={c} s={st} /></li></Rise>
-                  ))}
-                </ol>
-                <p className="note">{c.journey.note}</p>
-              </section>
-            )}
 
             {c.intel && (
               <section className="block">
