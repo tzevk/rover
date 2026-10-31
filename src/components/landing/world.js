@@ -13,14 +13,14 @@ export const TILL = { x: -5 };
 // film cuts where the product changes place.
 export const SHOTS = [
   { eye: [-0.3, 1.5, 3.5], aim: [-1.05, 0.86, 0] },     // the workshop, beside the headline
-  { eye: [-0.1, 1.22, 0.95], aim: [-0.46, 1, 0] },      // production: the bracket under the drill
+  { eye: [-0.2, 1.3, 0.62], aim: [-0.42, 1.02, 0.02] },      // production: the bracket under the drill
   { eye: [3.5, 1.55, 3.3], aim: [3.2, 1.05, -0.5] },    // stock: on the shelves
   { eye: [3.2, 1.28, 1], aim: [3.2, 1.05, -0.55] },     // order: held
   { eye: [2.5, 1.05, 3.2], aim: [3.7, 0.72, 0.8] },     // dispatch: on the hand truck
-  { eye: [29, 1.7, 6.6], aim: [30, 1.62, -1] },         // delivery: at the customer's door
+  { eye: [29.8, 1.7, 7.6], aim: [30.9, 1.62, -1] },         // delivery: at the customer's door
   { eye: [29.45, 1.25, 1], aim: [29.3, 0.36, -0.36] },  // invoice
   { eye: [29.42, 1.1, 0.72], aim: [29.28, 0.38, -0.36] },   // payment
-  { eye: [-4.15, 1.42, 2.3], aim: [-4.85, 1.02, 0] },   // daily cash: the till
+  { eye: [-3.8, 1.5, 2.1], aim: [-4.2, 1.06, 0] },   // daily cash: the till
 ];
 
 // Scroll positions where the film cuts rather than moves.

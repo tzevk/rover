@@ -136,7 +136,7 @@ function makeBracket() {
     for (let i = 0; i < 3200; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? "255,255,255" : "0,0,0"}, 0.09)`; x.fillRect(Math.random() * w, Math.random() * h, 30 + Math.random() * 220, 1); }
   });
   const rough = new THREE.CanvasTexture(noise);
-  const steel = new THREE.MeshStandardMaterial({ color: "#b9bdc0", metalness: 1, roughness: 0.56, roughnessMap: rough, envMapIntensity: 1.3 });
+  const steel = new THREE.MeshStandardMaterial({ color: "#8d9195", metalness: 1, roughness: 0.46, roughnessMap: rough, envMapIntensity: 1.3 });
   const plate = new THREE.ExtrudeGeometry(bracketShape(0.11, 0.058), { depth: 0.0045, bevelEnabled: true, bevelThickness: 0.0006, bevelSize: 0.0006, bevelSegments: 2, curveSegments: 16 });
   plate.rotateX(-Math.PI / 2);
   const g = new THREE.Group(), base = new THREE.Mesh(plate, steel), wall = new THREE.Mesh(plate, steel);
@@ -288,6 +288,11 @@ function Film({ live, mobile, maxDpr }) {
       floor.position.set(-0.6, 0.002, 0);
       floor.receiveShadow = true;
       world.add(floor);
+      const forecourt = new THREE.Mesh(new THREE.PlaneGeometry(34, 26), new THREE.MeshStandardMaterial({ color: "#b9b4aa", map: diff, normalMap: nor, roughnessMap: rough, roughness: 1, envMapIntensity: 0.8 }));
+      forecourt.rotation.x = -Math.PI / 2;
+      forecourt.position.set(STREET.x, 0.002, 10.8);
+      forecourt.receiveShadow = true;
+      world.add(forecourt);
 
       const [shelves, truck, register, clipboard, chest, cart, tyre, pump, shutter, yard, desk2, fan, lamp, brickD, brickN, brickR] = await Promise.all([
         load("steel_frame_shelves_01"), load("hand_truck"), load("CashRegister_01"), load("clipboard"), load("metal_tool_chest"), load("tool_cart"), load("old_tyre"), load("tire_pump"),
@@ -329,11 +334,11 @@ function Film({ live, mobile, maxDpr }) {
 
       // The till, for the end of the day.
       world.add(place(desk2, TILL.x, 0, 0));
-      s.register = place(register, TILL.x - 0.1, DESK.top, 0.02, 0.24);
+      s.register = place(register, TILL.x + 0.66, DESK.top, 0.02, 0.16);
       s.drawer = part(register, "_drawer");
       s.drawerZ = s.drawer?.position.z ?? 0;
       world.add(s.register);
-      world.add(place(chest, TILL.x + 1.5, 0, -0.1, -0.4));
+      world.add(place(chest, TILL.x + 2.2, 0, -0.4, -0.4));
 
       // The Motor Shop: a brick front, a shutter, a sign, and the tools of the trade outside.
       const street = new THREE.Group();
@@ -377,11 +382,6 @@ function Film({ live, mobile, maxDpr }) {
       s.door.add(stamp);
       s.stamp = stamp;
       world.add(street);
-      const catcher = new THREE.Mesh(new THREE.PlaneGeometry(26, 26), new THREE.ShadowMaterial({ opacity: 0.42 }));
-      catcher.rotation.x = -Math.PI / 2;
-      catcher.position.set(STREET.x, 0.003, 2);
-      catcher.receiveShadow = true;
-      world.add(catcher);
       s.yard = yard;
       yard.sky.visible = false;
       world.add(yard.sky);
