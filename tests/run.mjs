@@ -1163,6 +1163,11 @@ async function main() {
     const [{ company_id: second }] = await q("SELECT company_id FROM users WHERE username = 'asha'");
     const [co] = await q("SELECT plan, access_until FROM companies WHERE id = ?", [second]);
     check(second !== 1 && co.plan === "trial" && co.access_until, "a new company starts on a trial, separate from company 1");
+    await other.goto(`${BASE}/`);
+    check(await seen(other, ".plan-note:has-text('14')"), "the owner sees the days left on the trial");
+    check(await seen(other, ".start-list a[href='/customers']"), "a new company gets its first steps on the dashboard");
+    await admin.goto(`${BASE}/`);
+    check(await admin.locator(".plan-note, .start-list").count() === 0, "a company with no end date sees neither");
     const [firstCustomer] = await q("SELECT id, name FROM customers WHERE company_id = 1 AND name = 'Shree Builders'");
     const [firstOrder] = await q("SELECT id FROM orders WHERE company_id = 1 LIMIT 1");
     for (const path of ["/", "/customers", "/orders", "/deliveries", "/accounts", "/cash", "/invoices", "/gst", "/royalty", "/tally", "/sites", "/expenses", "/users", "/activity", "/staff", "/payroll", "/attendance", "/orders/new", "/production", "/stock", "/vehicles", "/alerts"]) {
@@ -1240,9 +1245,18 @@ async function main() {
     check((await q("SELECT access_until FROM companies WHERE id = ?", [second]))[0].access_until === renewed.access_until, "the same payment delivered twice counts once");
     await other.goto(`${BASE}/customers`);
     check(await seen(other, "text=Own Customer"), "the company is back in after paying");
+    await other.goto(`${BASE}/billing`);
+    check(await seen(other, "td:has-text('1,000')"), "the payment shows in the company's history");
+    const records = Buffer.from(await (await otherCtx.request.get(`${BASE}/api/export/all`)).body());
+    const packed = records.toString("utf8");
+    check(records.subarray(0, 2).toString() === "PK" && records.subarray(-22, -18).toString("hex") === "504b0506", "all records download as one zip file");
+    check(/orders\.csv/.test(packed) && /Own Customer/.test(packed), "the download holds the company's own records");
+    check(!/Shree Builders/.test(packed) && !/scrypt|password_hash/.test(packed), "and nothing of another company's, and no passwords");
+    check((await q("SELECT COUNT(*) AS n FROM audit_log WHERE company_id = ? AND action = 'company.export'", [second]))[0].n === 1, "a full download is recorded in the activity log");
+    check((await browser.newContext().then((c) => c.request.get(`${BASE}/api/export/all`, { maxRedirects: 0 }))).status() !== 200, "the download needs a login");
     await other.goto(`${BASE}/enquiries`);
     check(await seen(other, "text=Page not found"), "customer companies can't see demo requests");
-    for (const path of ["/signup", "/terms", "/privacy"]) check((await fetch(`${BASE}${path}`, { redirect: "manual" })).status === 200, `${path} is public`);
+    for (const path of ["/signup", "/terms", "/privacy", "/help"]) check((await fetch(`${BASE}${path}`, { redirect: "manual" })).status === 200, `${path} is public`);
 
     const [[{ theirInvoice }]] = await appConn.query("SELECT MIN(id) AS theirInvoice FROM invoices WHERE company_id = 1");
     const otherRequest = other.context().request;
@@ -1317,7 +1331,7 @@ async function main() {
     check(!(await phone.locator(".lp-nav a.nav-wide").first().isVisible()), "the website's wide menu is hidden on a phone");
     await phone.click(".site-menu-btn");
     await phone.waitForSelector(".site-menu");
-    check(await phone.locator(".site-menu a").count() === 4, "…and a phone menu opens with the same links");
+    check(await phone.locator(".site-menu a").count() === 5, "…and a phone menu opens with the same links");
     await phone.keyboard.press("Escape");
     await phone.waitForSelector(".site-menu", { state: "detached" });
     await phone.click(".site-menu-btn");

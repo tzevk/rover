@@ -60,6 +60,8 @@ The landing page opens with `src/components/landing/Touch.js`: gold stars in a n
 
 Each company's data is separated by `company_id` on every table; every query filters on the signed-in user's company. `company_id` has no default, so a missed insert fails rather than landing in the wrong company. Company 1 is the original business and never expires. Public sign-up is off; set `SIGNUP_ENABLED=1` to open `/signup` (14-day trial). Usernames are unique across all companies.
 
+New companies see a setup list on the dashboard and days left on the trial; `/billing` lists payments and offers every record as a zip of CSV files through `/api/export/all`, which stays open after access ends. The landing page shows `PLAN_PRICE_INR` once it's set, and "Start free trial" only when sign-up is open.
+
 Billing uses Razorpay Payment Links; each payment adds 30 days. Set `PLAN_PRICE_INR`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET`, and point a Razorpay webhook for `payment_link.paid` at `/api/billing/webhook`.
 
 ## Quarry operations

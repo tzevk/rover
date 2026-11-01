@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight, BadgeIndianRupee, CalendarCheck, CircleCheckBig, Clock, HandCoins, LayoutDashboard,
   PlusCircle, Receipt, Scale, Sun, Truck, Wallet, BellRing } from "lucide-react";
+import GettingStarted from "@/components/GettingStarted";
 import { EmptyState, HeadLink, PageHead, Section, Stat } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { describeAlert, getAlerts } from "@/lib/alerts";
@@ -99,6 +100,8 @@ async function AdminDashboard({ user }) {
         subtitle={t("home.dashboardSubtitle")}>
         <Link href="/accounts" className="btn"><Scale size={16} /> {t("nav.accounts")}</Link>
       </PageHead>
+
+      <GettingStarted user={user} t={t} />
 
       <div className="stats">
         <Stat accent icon={Wallet} label={t("home.totalOutstanding")} value={inr(outstanding.total)} hint={t("home.acrossCustomers")} />

@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { ArrowRight, Check } from "lucide-react";
 import Logo from "@/components/Logo";
 import ContactLinks from "@/components/ContactLinks";
 import SiteMenu from "./SiteMenu";
+import { planPrice } from "@/lib/billing";
+import { inr } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { CONTENT } from "./content";
 import { SEO_PAGES } from "./seo-pages";
@@ -29,6 +32,7 @@ function structuredData(c) {
     "@graph": [
       { "@type": "Organization", name: SITE.name, url: SITE.url, logo: `${SITE.url}/icon.svg`, ...(SITE.email && { email: SITE.email }), ...(SITE.phone && { telephone: `+${SITE.phone}` }) },
       { "@type": "SoftwareApplication", name: `${SITE.name} Operations Software`, url: SITE.url, applicationCategory: "BusinessApplication", operatingSystem: "Web", description: c.description, inLanguage: ["en", "mr"], featureList: c.modules.filter((m) => m.status === "available").map((m) => m.name) },
+      { "@type": "FAQPage", mainEntity: c.faqs.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
     ],
   };
 }
@@ -42,6 +46,7 @@ function Accent({ text, word }) {
 export default function Landing({ lang }) {
   const c = CONTENT[lang];
   const json = JSON.stringify(structuredData(c)).replace(/</g, "\\u003c");
+  const price = planPrice();
   return (
     <MotionRoot>
       <div className={`lp ${fontClasses}`} lang={lang}>
@@ -50,11 +55,13 @@ export default function Landing({ lang }) {
           <Link href={c.path} className="lp-brand"><Logo size={28} /> <span>{lang === "mr" ? "आर.के. एंटरप्रायझेस" : SITE.name}</span></Link>
           <div>
             <a href="#modules" className="nav-wide">{c.nav.modules}</a>
+            <a href="#pricing" className="nav-wide">{c.nav.pricing}</a>
             <Link href={c.nav.otherPath} hrefLang={c.nav.otherLang} lang={c.nav.otherLang} className="nav-wide">{c.nav.other}</Link>
             <Link href="/login" className="nav-wide">{c.nav.signIn}</Link>
             <a href="#demo" className="lp-nav-in">{c.nav.demo}</a>
             <SiteMenu labels={c.nav} links={[
               { href: "#modules", label: c.nav.modules },
+              { href: "#pricing", label: c.nav.pricing },
               { href: c.nav.otherPath, label: c.nav.other, lang: c.nav.otherLang },
               { href: "/login", label: c.nav.signIn },
               { href: "#demo", label: c.nav.demo },
@@ -88,6 +95,25 @@ export default function Landing({ lang }) {
 
           {c.why && <dl className="pledges">{c.why.map(([a, , b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>}
 
+          <section id="pricing" className="plans">
+            <h2><Accent text={c.pricingTitle} word={c.pricingAccent} /></h2>
+            <div className="plan-sheet">
+              <div>
+                <p className="plan-price">{price ? inr(price) : c.pricing.ask}</p>
+                <p>{price ? c.pricing.per : c.pricing.askNote}</p>
+                {SITE.signupOpen
+                  ? <Link href="/signup" className="act">{c.pricing.start} <ArrowRight size={18} /></Link>
+                  : <a href="#demo" className="act">{c.nav.demo} <ArrowRight size={18} /></a>}
+              </div>
+              <ul>{c.pricing.points.map((point) => <li key={point}><Check size={18} /> {point}</li>)}</ul>
+            </div>
+          </section>
+
+          <section id="faq" className="faq">
+            <h2><Accent text={c.faqTitle} word={c.faqAccent} /></h2>
+            <div>{c.faqs.map(([q, a]) => <details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div>
+          </section>
+
           <section id="demo" className="demo">
             <div><h2><Accent text={c.demo.title} word={c.demo.accent} /></h2><p>{c.demo.text}</p></div>
             <DemoForm demo={c.demo} lang={lang} />
@@ -97,7 +123,7 @@ export default function Landing({ lang }) {
             <span>© {new Date().getFullYear()} {SITE.name}</span>
             <ContactLinks />
             <nav aria-label={c.capabilities}>{Object.entries(SEO_PAGES).map(([s, p]) => <Link key={s} href={`/${s}`}>{p.h1}</Link>)}</nav>
-            <span><Link href="/terms">{c.legal[0]}</Link> · <Link href="/privacy">{c.legal[1]}</Link></span>
+            <span><Link href="/help">{c.nav.help}</Link> · <Link href="/terms">{c.legal[0]}</Link> · <Link href="/privacy">{c.legal[1]}</Link></span>
           </footer>
         </div>
       </div>

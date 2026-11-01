@@ -1210,3 +1210,11 @@ a.tel { color: inherit; text-decoration: underline; text-underline-offset: 2px; 
   .order-dot { grid-row: span 2; margin: 0; }
   .order-progress li::after { left: 11px; right: auto; top: 26px; bottom: -14px; width: 2px; height: auto; }
 }
+
+/* Time left on the plan, and a new company's first steps */
+.plan-note { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding: 10px 16px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-soft-ink); font-size: 14px; text-decoration: none; }
+.start-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 16px; margin: 0; padding: 12px 20px 16px; list-style: none; }
+.start-list a { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: var(--ink); text-decoration: none; }
+.start-list a:hover { color: var(--accent); }
+.start-list li[data-done] a { color: var(--muted); text-decoration: line-through; }
+.start-list li[data-done] svg { color: var(--ok); }

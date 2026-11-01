@@ -1,3 +1,5 @@
+import { PLAN_DAYS, TRIAL_DAYS } from "@/lib/billing";
+
 // Website copy. Say "available" only for what's in the app today; everything else is "planned".
 export const CONTENT = {
   en: {
@@ -5,7 +7,7 @@ export const CONTENT = {
     title: "Operations Software for Small Businesses in India | R.K. Enterprises",
     description: "Orders, stock, staff, deliveries, GST invoices and daily cash in one system, for workshops, manufacturers and small businesses. In English and Marathi.",
     keywords: ["small business management software", "operations management software India", "workshop management software", "small manufacturer software", "order and stock management software", "GST billing and stock software", "attendance and payroll for small business", "quarry management software"],
-    nav: { open: "Open menu", close: "Close menu", platform: "How it works", modules: "What's included", demo: "Book a Demo", signIn: "Sign in", other: "मराठी", otherPath: "/mr", otherLang: "mr" },
+    nav: { open: "Open menu", close: "Close menu", platform: "How it works", modules: "What's included", pricing: "Pricing", faq: "Questions", help: "Help", demo: "Book a Demo", signIn: "Sign in", other: "मराठी", otherPath: "/mr", otherLang: "mr" },
     status: { available: "Available", planned: "Planned", partial: "Partly available" },
     descriptor: "Operations software for small businesses",
     headline: "Run your business from one place.",
@@ -19,6 +21,25 @@ export const CONTENT = {
       end: "Orders, stock, staff and cash meet here.",
     },
     roadmap: "Not included yet: e-invoicing (IRN) and live connections to government portals.",
+    pricingTitle: "One plan, nothing locked.",
+    pricingAccent: "nothing locked.",
+    pricing: {
+      per: `for ${PLAN_DAYS} days`,
+      ask: "Ask us",
+      askNote: "We'll quote for your business.",
+      start: "Start free trial",
+      points: [`${TRIAL_DAYS} days free, no card needed`, "Every feature included", "As many staff logins as you need", "No automatic charges", "Download all your records anytime"],
+    },
+    faqTitle: "Before you ask.",
+    faqAccent: "ask.",
+    faqs: [
+      ["What happens when the trial ends?", "Your screens close until you renew. Records stay in place, and the owner can still download them."],
+      ["Will I be charged automatically?", `No. Each payment adds ${PLAN_DAYS} days, and paying early adds to the time left.`],
+      ["Does it work on a phone?", "Yes. It runs in the browser on phones, tablets and computers, with separate owner and staff access."],
+      ["What if the internet drops?", "The gate screen keeps working and sends entries once you're back online. Other screens need a connection."],
+      ["Who can see my data?", "Only your company. Each login sees what its role allows, and every change is logged."],
+      ["Can I leave with my records?", "Yes. They're yours, and they download as spreadsheets."],
+    ],
     modulesTitle: "Also on the books.",
     modulesAccent: "books.",
     modules: [
@@ -69,7 +90,7 @@ export const CONTENT = {
     title: "लहान व्यवसायांसाठी कामकाज सॉफ्टवेअर | आर.के. एंटरप्रायझेस",
     description: "मागण्या, साठा, कर्मचारी, वितरण, जीएसटी बीजके आणि दैनिक रोख एकाच प्रणालीत, कार्यशाळा, उत्पादक आणि लहान व्यवसायांसाठी. मराठी व इंग्रजीत.",
     keywords: ["लहान व्यवसाय सॉफ्टवेअर", "कार्यशाळा व्यवस्थापन सॉफ्टवेअर", "साठा व्यवस्थापन सॉफ्टवेअर", "जीएसटी बिलिंग सॉफ्टवेअर"],
-    nav: { open: "मेनू उघडा", close: "मेनू बंद करा", platform: "हे कसे चालते", modules: "काय समाविष्ट आहे", demo: "डेमो ठरवा", signIn: "प्रवेश", other: "English", otherPath: "/", otherLang: "en" },
+    nav: { open: "मेनू उघडा", close: "मेनू बंद करा", platform: "हे कसे चालते", modules: "काय समाविष्ट आहे", pricing: "किंमत", faq: "प्रश्न", help: "मदत", demo: "डेमो ठरवा", signIn: "प्रवेश", other: "English", otherPath: "/", otherLang: "en" },
     status: { available: "उपलब्ध", planned: "नियोजित", partial: "अंशतः उपलब्ध" },
     descriptor: "लहान व्यवसायांसाठी कामकाज सॉफ्टवेअर",
     headline: "तुमचा व्यवसाय एकाच ठिकाणाहून चालवा.",
@@ -84,6 +105,23 @@ export const CONTENT = {
     },
     roadmap: "अद्याप समाविष्ट नाही: ई-इनव्हॉइसिंग (IRN) आणि शासकीय पोर्टलशी थेट जोडणी.",
     sample: "नमुना माहिती",
+    pricingTitle: "एकच योजना, सर्व काही खुले.",
+    pricing: {
+      per: `${PLAN_DAYS} दिवसांसाठी`,
+      ask: "आम्हाला विचारा",
+      askNote: "तुमच्या व्यवसायानुसार दर सांगू.",
+      start: "मोफत चाचणी सुरू करा",
+      points: [`${TRIAL_DAYS} दिवस मोफत, कार्डची गरज नाही`, "सर्व सुविधा समाविष्ट", "हवे तितके कर्मचारी लॉगिन", "आपोआप पैसे कापले जात नाहीत", "सर्व नोंदी कधीही डाउनलोड करा"],
+    },
+    faqTitle: "नेहमीचे प्रश्न.",
+    faqs: [
+      ["चाचणी संपल्यावर काय होते?", "नूतनीकरण करेपर्यंत स्क्रीन बंद राहतात. नोंदी जपलेल्या राहतात आणि मालक त्या डाउनलोड करू शकतो."],
+      ["आपोआप पैसे कापले जातील का?", `नाही. प्रत्येक भरण्याने ${PLAN_DAYS} दिवस वाढतात आणि लवकर भरल्यास ते उरलेल्या दिवसांत जोडले जातात.`],
+      ["हे फोनवर चालते का?", "हो. फोन, टॅबलेट आणि संगणकावर ब्राउझरमध्ये चालते, मालक आणि कर्मचाऱ्यांसाठी वेगळा प्रवेश असतो."],
+      ["इंटरनेट बंद पडले तर?", "गेट स्क्रीन चालू राहते आणि इंटरनेट आल्यावर नोंदी पाठवते. इतर स्क्रीनना इंटरनेट लागते."],
+      ["माझा डेटा कोण पाहू शकते?", "फक्त तुमची कंपनी. प्रत्येक लॉगिनला त्याच्या भूमिकेनुसार दिसते आणि प्रत्येक बदलाची नोंद राहते."],
+      ["मी माझ्या नोंदी घेऊन जाऊ शकतो का?", "हो. त्या तुमच्याच आहेत आणि स्प्रेडशीट म्हणून डाउनलोड होतात."],
+    ],
     modulesTitle: "हेही हिशेबात.",
     modules: [
       { name: "मागण्या", status: "available", line: "प्रत्येक मागणी ग्राहक, वस्तू, परिमाण आणि दराशी जोडलेली.", points: ["मागणी घेताना नवीन ग्राहक जोडा", "वस्तूचा नेहमीचा दर आपोआप", "प्रलंबित मागण्या व इतिहास"] },
