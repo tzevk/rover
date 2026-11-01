@@ -39,7 +39,7 @@ export default async function RootLayout({ children }) {
   const saved = (await cookies()).get(THEME_COOKIE)?.value;
   const theme = saved === "dark" || saved === "light" ? saved : undefined;
   return (
-    <html lang={pageLang ?? lang} data-theme={theme} suppressHydrationWarning
+    <html lang={pageLang ?? lang} data-theme={theme} data-scroll-behavior="smooth" suppressHydrationWarning
       className={`${body.variable} ${bodyDeva.variable} ${displayDeva.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />

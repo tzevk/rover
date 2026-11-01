@@ -11,6 +11,7 @@ export const CONTENT = {
     headline: "Run your business from one place.",
     cta: { primary: "See how it works", secondary: "Book a Demo" },
     touch: {
+      turn: "from",
       accent: "one place.",
       scroll: "Scroll",
       one: "Technology comes together.",
@@ -19,6 +20,7 @@ export const CONTENT = {
     },
     roadmap: "Not included yet: e-invoicing (IRN) and live connections to government portals.",
     modulesTitle: "Also on the books.",
+    modulesAccent: "books.",
     modules: [
       { name: "Orders", status: "available", line: "Every order tied to its customer, item, quantity and rate.", points: ["Add a new customer while booking", "Each item's usual rate fills in", "Pending orders and full order history"] },
       { name: "Stock", status: "available", line: "Know what you have, what's booked and what has gone out.", points: ["Worked out from every production entry and delivery", "Available stock shown while booking", "Physical counts that correct the book and keep the difference on record", "Pieces, kg, litres, metres, boxes and more"] },
@@ -36,6 +38,7 @@ export const CONTENT = {
     sample: "Sample data",
 
     whoTitle: "Made for",
+    whoAccent: "for",
     who: [
       ["Workshops and garages", "Parts, jobs, wages and customer dues, kept together."],
       ["Small manufacturers", "What was made, what it used and what's ready."],
@@ -51,6 +54,7 @@ export const CONTENT = {
     ],
     demo: {
       title: "See your own numbers.",
+      accent: "numbers.",
       text: "Tell us what you run. We'll set it up for you.",
       submit: "Request a demo",
       fields: { name: "Name", company: "Company", type: "Type of business", location: "Location", phone: "Phone", email: "Email", employees: "Approximate number of employees", needs: "What would you like to manage better?" },
@@ -71,6 +75,7 @@ export const CONTENT = {
     headline: "तुमचा व्यवसाय एकाच ठिकाणाहून चालवा.",
     cta: { primary: "हे कसे चालते ते पाहा", secondary: "डेमो ठरवा" },
     touch: {
+      turn: "एकाच",
       accent: "एकाच ठिकाणाहून",
       scroll: "खाली सरका",
       one: "तंत्रज्ञान एकत्र येते.",

@@ -13,16 +13,16 @@ const sprite = (size, paint) => {
 const halo = (g, m) => {
   const r = g.createRadialGradient(m, m, 0, m, m, m);
   r.addColorStop(0, "rgb(255 250 236 / 1)");
-  r.addColorStop(0.09, "rgb(255 232 190 / 0.85)");
-  r.addColorStop(0.3, "rgb(242 176 88 / 0.2)");
-  r.addColorStop(1, "rgb(242 176 88 / 0)");
+  r.addColorStop(0.09, "rgb(240 214 170 / 0.85)");
+  r.addColorStop(0.3, "rgb(224 187 133 / 0.2)");
+  r.addColorStop(1, "rgb(224 187 133 / 0)");
   g.fillStyle = r;
   g.fillRect(0, 0, m * 2, m * 2);
 };
 
 const flare = (g, m) => {
   halo(g, m);
-  g.strokeStyle = "rgb(255 236 200 / 0.55)";
+  g.strokeStyle = "rgb(240 220 184 / 0.55)";
   g.lineWidth = 1;
   g.beginPath();
   g.moveTo(m * 0.1, m); g.lineTo(m * 1.9, m);
@@ -83,7 +83,7 @@ export function starfield(canvas, arms, goals) {
     const web = 0.34 * ramp(p, 0.03, 0.08) * (1 - ramp(p, 0.19, 0.25));
     if (web > 0) {
       ctx.globalAlpha = web;
-      ctx.strokeStyle = "#f2c27a";
+      ctx.strokeStyle = "#e0bb85";
       ctx.lineWidth = 0.8;
       ctx.beginPath();
       links.forEach(([a, b]) => { ctx.moveTo(at[a].x, at[a].y); ctx.lineTo(at[b].x, at[b].y); });

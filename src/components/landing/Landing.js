@@ -33,6 +33,12 @@ function structuredData(c) {
   };
 }
 
+function Accent({ text, word }) {
+  if (!word) return text;
+  const [lead, tail] = text.split(word);
+  return <>{lead}<em>{word}</em>{tail}</>;
+}
+
 export default function Landing({ lang }) {
   const c = CONTENT[lang];
   const json = JSON.stringify(structuredData(c)).replace(/</g, "\\u003c");
@@ -60,7 +66,7 @@ export default function Landing({ lang }) {
 
         <div className="ground">
           <section id="modules" className="inside">
-            <h2>{c.modulesTitle}</h2>
+            <h2><Accent text={c.modulesTitle} word={c.modulesAccent} /></h2>
             <ol>
               {c.modules.filter((m) => m.also).map((m, i) => (
                 <li key={m.name}>
@@ -75,7 +81,7 @@ export default function Landing({ lang }) {
 
           {c.who && (
             <section className="readers">
-              <h2>{c.whoTitle}</h2>
+              <h2><Accent text={c.whoTitle} word={c.whoAccent} /></h2>
               <ul>{c.who.map(([a, b]) => <li key={a}><h3>{a}</h3><p>{b}</p></li>)}</ul>
             </section>
           )}
@@ -83,7 +89,7 @@ export default function Landing({ lang }) {
           {c.why && <dl className="pledges">{c.why.map(([a, , b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>}
 
           <section id="demo" className="demo">
-            <div><h2>{c.demo.title}</h2><p>{c.demo.text}</p></div>
+            <div><h2><Accent text={c.demo.title} word={c.demo.accent} /></h2><p>{c.demo.text}</p></div>
             <DemoForm demo={c.demo} lang={lang} />
           </section>
 

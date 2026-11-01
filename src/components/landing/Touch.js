@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Action } from "./Motion";
 import { clamp, ramp, seeded, starfield } from "./stars";
@@ -62,6 +62,8 @@ function circuit(x0, x1, y0, y1, count) {
 }
 
 // Where the gold stars land: pads and chip corners that sit inside the arm.
+const say = (line) => line.split(" ").map((word, i) => <Fragment key={i}><span className="word" style={{ "--i": i }}>{word}</span>{" "}</Fragment>);
+
 const landings = ({ board, chips }) => [
   ...board.pads.filter(([x, y]) => x > 420 && x < 640 && y > 176 && y < 238),
   ...chips.flatMap(([x, y, w, h]) => [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]),
@@ -78,7 +80,8 @@ const drawings = () => ({
 
 export default function Touch({ touch, headline, cta, descriptor }) {
   const pin = useRef(null), run = useRef(null), sky = useRef(null), arms = useRef(null);
-  const [lead, tail] = headline.split(touch.accent);
+  const turn = headline.indexOf(touch.turn), first = headline.slice(0, turn).trim();
+  const [lead, tail] = headline.slice(turn).split(touch.accent);
 
   const [art, setArt] = useState(null);
   useEffect(() => setArt(drawings()), []);
@@ -131,7 +134,12 @@ export default function Touch({ touch, headline, cta, descriptor }) {
       else field.paint(1, 0, 1, aim, now);
     };
     const aim = { x: 0, y: 0, tx: 0, ty: 0 };
-    const resize = () => { field.fit(); read(); };
+    const lines = [...el.querySelectorAll("[data-line]")];
+    const measure = () => lines.forEach((line) => {
+      const room = (line.parentElement.clientWidth - line.offsetWidth) / 2;
+      line.style.setProperty("--in", `${line.dataset.line === "left" ? room : -room}px`);
+    });
+    const resize = () => { field.fit(); measure(); read(); };
     const look = (e) => {
       if (e.pointerType === "touch") return;
       aim.tx = e.clientX / innerWidth - 0.5;
@@ -143,6 +151,7 @@ export default function Touch({ touch, headline, cta, descriptor }) {
     const away = () => { aim.tx = 0; aim.ty = 0; delete el.dataset.lamp; };
     if (!still) { el.addEventListener("pointermove", look, { passive: true }); el.addEventListener("pointerleave", away); }
     resize();
+    document.fonts?.ready.then(measure);
     p = goal;
     place();
     addEventListener("scroll", read, { passive: true });
@@ -168,8 +177,13 @@ export default function Touch({ touch, headline, cta, descriptor }) {
         <div className="grid-lamp" aria-hidden="true" />
         <i className="progress" aria-hidden="true" />
         <div className="touch-words">
-          <p className="kicker">{descriptor}</p>
-          <h1>{lead}<em>{touch.accent}</em>{tail}</h1>
+          <p className="kicker" data-line="left">{descriptor}</p>
+          <h1>
+            <span className="h-line" data-line="left"><span>{first}</span></span>{" "}
+            <span className="h-line h-line-two" data-line="right">
+              <span>{lead}<em>{touch.accent}<svg className="swash" viewBox="0 0 300 14" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M3 10C62 4 118 3 176 5S268 8 297 3" /></svg></em>{tail}</span>
+            </span>
+          </h1>
         </div>
         <div ref={arms} className="arms" aria-hidden="true">
           {art && <svg className="arm-back" viewBox="0 0 740 416">
@@ -186,7 +200,7 @@ export default function Touch({ touch, headline, cta, descriptor }) {
           </div>
           <div className="reach reach-right">
             {art && <svg className="moulded mould-right" viewBox="0 0 740 416">
-              <g className="t-amber">
+              <g className="t-tech">
                 {draw(art.board.paths, "--tech", 0.5)}
                 {art.board.paths.filter((_, i) => i % 2 === 0).map((d, i) => <path key={i} d={d} pathLength="1" className="pulse" strokeWidth="0.9" style={{ animationDuration: `${3.2 + (i % 4) * 0.9}s`, animationDelay: `${i * -0.7}s` }} />)}
                 {art.board.pads.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="1.4" strokeWidth="0.5" style={{ opacity: "var(--tech)" }} />)}
@@ -199,10 +213,10 @@ export default function Touch({ touch, headline, cta, descriptor }) {
           <i className="spark" />
         </div>
         <p className="cue" aria-hidden="true">{touch.scroll}<i /></p>
-        <p className="beat beat-one">{touch.one}</p>
-        <p className="beat beat-two">{touch.two}</p>
+        <p className="beat beat-one">{say(touch.one)}</p>
+        <p className="beat beat-two">{say(touch.two)}</p>
         <div className="beat beat-end">
-          <p>{touch.end}</p>
+          <p>{say(touch.end)}</p>
           <Action href="#demo">{cta.secondary} <ArrowRight size={18} /></Action>
         </div>
       </div>
